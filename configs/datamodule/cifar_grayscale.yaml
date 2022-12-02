@@ -1,0 +1,5 @@
+defaults:
+  - default
+
+_target_: datamodules.cifar_grayscale.CifarGrayscaleDataModule
+dims: [1, 32, 32]

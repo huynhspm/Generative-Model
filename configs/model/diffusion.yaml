@@ -1,0 +1,4 @@
+_target_: models.model.DiffusionModel
+
+t_range: 1000
+img_dims: [1, 32, 32]
