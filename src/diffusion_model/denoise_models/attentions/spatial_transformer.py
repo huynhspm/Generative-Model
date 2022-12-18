@@ -57,7 +57,7 @@ class SpatialTransformer(nn.Module):
                                   stride=1,
                                   padding=0)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, cond: torch.Tensor = None):
         """
         :param x: is the feature map of shape `[batch_size, channels, height, width]`
         :param cond: is the conditional embeddings of shape `[batch_size,  n_cond, d_cond]`

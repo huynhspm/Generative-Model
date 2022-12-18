@@ -45,7 +45,9 @@ Diffusion model is a type of generative model. Its approach is different from GA
 - Backbone: Resnet
 - Attention: Self_attention_wrapper
 - Time embedding: not only embed by (sin, cos) but also using convolution layer
-- #### FASHION
+#### MINST
+![MNIST Generation](/outputs/inference/MNIST/version_2.gif)
+#### FASHION
 ![Fashion Generation](/outputs/inference/FASHION/version_2.gif)
 #### GENDER
 ![GENDER Generation](/outputs/inference/GENDER/version_2.gif)
