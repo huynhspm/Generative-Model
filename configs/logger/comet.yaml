@@ -1,0 +1,12 @@
+# https://www.comet.ml
+
+comet:
+  _target_: pytorch_lightning.loggers.CometLogger
+  api_key: KBqAQ4HR8py3gXcbO7Iqa0vZe
+  save_dir: "${paths.output_dir}/logs/comet"
+  project_name: "MNIST"
+  rest_api_key: null
+  experiment_name: ""
+  experiment_key: null # set to resume experiment
+  offline: False
+  prefix: ""

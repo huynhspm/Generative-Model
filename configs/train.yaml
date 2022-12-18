@@ -1,12 +1,29 @@
 defaults:
   - callbacks: default
-  - datamodule: cifar
-  - logger: tensorboard
+  - datamodule: fashion
+  - logger: default
   - model: diffusion
   - trainer: default
   - paths: default
   - _self_
 
+datamodule:
+  batch_size: 128
+
+trainer:
+  max_epochs: 20
+
+logger:
+  comet:
+    project_name: "FASHION"
+    experiment_name: "Resnet-SWrapper-Augmentation"
+  tensorboard:
+    name: "FASHION"
+
+model:
+  backbone: "Resnet"
+  attention: "SAWrapper"
+
 load_model: False
-load_version_num: 0
-dataset_choice: "MNIST"
+index_checkpoint: -1
+checkpoint_dir: "${paths.root_dir}/outputs/2022-12-08/15-50-57/checkpoints/"

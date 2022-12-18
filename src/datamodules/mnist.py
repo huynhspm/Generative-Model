@@ -48,6 +48,7 @@ class MnistDataModule(LightningDataModule):
 
 if __name__ == "__main__":
     dm = MnistDataModule(128, 2, [1, 32, 32], "./data")
+    print(dm.dims)
     dm.setup()
     train_dataloader = dm.train_dataloader()
 

@@ -1,0 +1,8 @@
+defaults:
+  - model: diffusion
+  - paths: default
+  - _self_
+name_img: "pred"
+gif_shape: [1, 9]
+img_dims: [1, 32, 32]
+checkpoint_dir: "${paths.root_dir}/outputs/2022-12-12/12-06-41/checkpoints/"

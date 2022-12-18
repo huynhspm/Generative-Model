@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, Dataset, random_split
 from typing import Tuple
 
 
-class GenderDataset(Dataset):
+class DogCatDataset(Dataset):
 
     def __init__(self, data_dir: str, size: int) -> None:
         super().__init__()
@@ -20,22 +20,28 @@ class GenderDataset(Dataset):
         ])
 
         img_dir = [
-            f"{data_dir}/Test/Female/*.jpg", f"{data_dir}/Test/Male/*.jpg",
-            f"{data_dir}/Validation/Female/*.jpg",
-            f"{data_dir}/Validation/Male/*.jpg",
-            f"{data_dir}/Train/Female/*.jpg", f"{data_dir}/Train/Male/*.jpg"
+            f"{data_dir}/test_set/cats/*.jpg",
+            f"{data_dir}/test_set/dogs/*.jpg",
+            f"{data_dir}/training_set/cats/*.jpg",
+            f"{data_dir}/training_set/dogs/*.jpg",
+            f"{data_dir}/train/cat/*.jpg",
+            f"{data_dir}/train/dog/*.jpg",
+            f"{data_dir}/train/wild/*.jpg",
+            f"{data_dir}/val/cat/*.jpg",
+            f"{data_dir}/val/dog/*.jpg",
+            f"{data_dir}/val/wild/*.jpg",
         ]
 
         self.img_paths = glob.glob(img_dir[0]) + glob.glob(
             img_dir[1]) + glob.glob(img_dir[2]) + glob.glob(
-                img_dir[3]) + glob.glob(img_dir[4]) + glob.glob(img_dir[5])
+                img_dir[3]) + glob.glob(img_dir[4]) + glob.glob(
+                    img_dir[5]) + glob.glob(img_dir[6]) + glob.glob(img_dir[7])
 
         # self.prepare_data()
 
     def prepare_data(self) -> None:
         import opendatasets as od
-        od.download(
-            "https://www.kaggle.com/datasets/yasserhessein/gender-dataset")
+        od.download("https://www.kaggle.com/datasets/tongpython/cat-and-dog")
 
     def __len__(self):
         return len(self.img_paths)
@@ -51,7 +57,7 @@ class GenderDataset(Dataset):
         return image * 2.0 - 1.0
 
 
-class GenderDataModule(LightningDataModule):
+class DogCatDataModule(LightningDataModule):
 
     def __init__(self, batch_size: int, num_workers: int,
                  dims: Tuple[int, int, int], data_dir: str) -> None:
@@ -62,11 +68,11 @@ class GenderDataModule(LightningDataModule):
         self.data_dir = data_dir
 
     def setup(self, stage=None) -> None:
-        data_full = GenderDataset(f"{self.data_dir}", self.dims[1:3])
+        data_full = DogCatDataset(f"{self.data_dir}", self.dims[1:3])
 
         print(len(data_full))
         self.train_dataset, self.val_dataset = random_split(
-            data_full, [162599, 40000])
+            data_full, [20158, 5000])
 
     def train_dataloader(self):
         return DataLoader(self.train_dataset,
@@ -80,7 +86,7 @@ class GenderDataModule(LightningDataModule):
 
 
 if __name__ == "__main__":
-    dm = GenderDataModule(128, 2, [3, 64, 64], "./data/GENDER")
+    dm = DogCatDataModule(128, 2, [3, 256, 256], "./data/DOG_CAT")
     dm.setup()
     train_dataloader = dm.train_dataloader()
 
