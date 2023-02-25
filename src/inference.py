@@ -4,7 +4,7 @@ import glob
 import imageio
 from omegaconf import DictConfig
 from pytorch_lightning import LightningModule
-from diffusion_model.model import DiffusionModel
+from models.diffusion import DiffusionModel
 
 
 def save_image(filename, img):
@@ -38,11 +38,7 @@ def my_app(cfg: DictConfig):
                                 "*.ckpt")[cfg.index_checkpoint]
 
     model: LightningModule = DiffusionModel.load_from_checkpoint(
-        last_checkpoint,
-        t_range=cfg.model.t_range,
-        img_dims=cfg.img_dims,
-        backbone=cfg.backbone,
-        attention=cfg.attention)
+        last_checkpoint)
     model.eval()
 
     gif_shape = cfg.gif_shape

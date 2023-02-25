@@ -3,27 +3,32 @@ defaults:
   - datamodule: fashion
   - logger: default
   - model: diffusion
-  - trainer: default
+  - trainer: gpu
   - paths: default
   - _self_
 
 datamodule:
-  batch_size: 128
+  batch_size: 16
+  augmentation: False
 
 trainer:
   max_epochs: 20
 
 logger:
   comet:
-    project_name: "FASHION"
-    experiment_name: "Resnet-SWrapper-Augmentation"
+    project_name: "mnist"
+    experiment_name: "2_ResnetBlock-2_BaseAttention_0_1_2"
   tensorboard:
-    name: "FASHION"
+    name: "mnist"
 
 model:
-  backbone: "Resnet"
-  attention: "SAWrapper"
+  backbone: "Resnet" # name of blocks for each level
+  n_layer_blocks: 2 # number of blocks at each level
+  attention: "Base" # name of attentions
+  attention_levels: [0, 1, 2] # the levels at which attention should be performed
+  n_attention_heads: 4 # is the number of attention heads
+  n_attention_layers: 2 # is the number of attention layers
 
 load_model: False
 index_checkpoint: -1
-checkpoint_dir: "${paths.root_dir}/outputs/2022-12-08/15-50-57/checkpoints/"
+checkpoint_dir: "${paths.root_dir}/outputs/2022-12-30/15-49-49/checkpoints/"

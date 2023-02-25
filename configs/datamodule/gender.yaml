@@ -3,4 +3,4 @@ defaults:
 
 _target_: datamodules.gender.GenderDataModule
 dims: [3, 64, 64]
-data_dir: "./data/GENDER"
+data_dir: "./data/gender"

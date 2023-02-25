@@ -1,6 +1,5 @@
 import glob
 import cv2
-import numpy as np
 from pytorch_lightning import LightningDataModule
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -9,15 +8,19 @@ from typing import Tuple
 
 class DogCatDataset(Dataset):
 
-    def __init__(self, data_dir: str, size: int) -> None:
+    def __init__(self, data_dir: str, size: Tuple[int, int],
+                 augmentation: bool) -> None:
         super().__init__()
-        self.size = size
-        self.transforms = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(10),
-            transforms.Resize(size)
-        ])
+        if augmentation:
+            self.transforms = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.Resize(size),
+                transforms.RandomHorizontalFlip(p=0.5),
+            ])
+        else:
+            self.transforms = transforms.Compose(
+                [transforms.ToTensor(),
+                 transforms.Resize(size)])
 
         img_dir = [
             f"{data_dir}/test_set/cats/*.jpg",
@@ -53,22 +56,25 @@ class DogCatDataset(Dataset):
 
         if self.transforms:
             image = self.transforms(image)
-
         return image * 2.0 - 1.0
 
 
 class DogCatDataModule(LightningDataModule):
 
-    def __init__(self, batch_size: int, num_workers: int,
-                 dims: Tuple[int, int, int], data_dir: str) -> None:
+    def __init__(self, batch_size: int, num_workers: int, dims: Tuple[int, int,
+                                                                      int],
+                 data_dir: str, augmentation: bool) -> None:
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.dims = dims
         self.data_dir = data_dir
+        self.augmentation = augmentation
 
     def setup(self, stage=None) -> None:
-        data_full = DogCatDataset(f"{self.data_dir}", self.dims[1:3])
+        data_full = DogCatDataset(data_dir=f"{self.data_dir}",
+                                  size=self.dims[1:3],
+                                  augmentation=self.augmentation)
 
         print(len(data_full))
         self.train_dataset, self.val_dataset = random_split(
@@ -86,7 +92,7 @@ class DogCatDataModule(LightningDataModule):
 
 
 if __name__ == "__main__":
-    dm = DogCatDataModule(128, 2, [3, 256, 256], "./data/DOG_CAT")
+    dm = DogCatDataModule(16, 2, [3, 64, 64], "./data/dog_cat", True)
     dm.setup()
     train_dataloader = dm.train_dataloader()
 

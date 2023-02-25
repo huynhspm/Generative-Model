@@ -1,6 +1,5 @@
 import glob
 import cv2
-import numpy as np
 from pytorch_lightning import LightningDataModule
 from torchvision import transforms
 from torch.utils.data import DataLoader, Dataset, random_split
@@ -9,15 +8,20 @@ from typing import Tuple
 
 class GenderDataset(Dataset):
 
-    def __init__(self, data_dir: str, size: int) -> None:
+    def __init__(self, data_dir: str, size: Tuple[int, int],
+                 augmentation: bool) -> None:
         super().__init__()
-        self.size = size
-        self.transforms = transforms.Compose([
-            transforms.ToTensor(),
-            transforms.RandomHorizontalFlip(p=0.5),
-            transforms.RandomRotation(10),
-            transforms.Resize(size)
-        ])
+
+        if augmentation:
+            self.transforms = transforms.Compose([
+                transforms.ToTensor(),
+                transforms.RandomHorizontalFlip(p=0.5),
+                transforms.Resize(size)
+            ])
+        else:
+            self.transforms = transforms.Compose(
+                [transforms.ToTensor(),
+                 transforms.Resize(size)])
 
         img_dir = [
             f"{data_dir}/Test/Female/*.jpg", f"{data_dir}/Test/Male/*.jpg",
@@ -53,16 +57,20 @@ class GenderDataset(Dataset):
 
 class GenderDataModule(LightningDataModule):
 
-    def __init__(self, batch_size: int, num_workers: int,
-                 dims: Tuple[int, int, int], data_dir: str) -> None:
+    def __init__(self, batch_size: int, num_workers: int, dims: Tuple[int, int,
+                                                                      int],
+                 data_dir: str, augmentation: bool) -> None:
         super().__init__()
         self.batch_size = batch_size
         self.num_workers = num_workers
         self.dims = dims
         self.data_dir = data_dir
+        self.augmentation = augmentation
 
     def setup(self, stage=None) -> None:
-        data_full = GenderDataset(f"{self.data_dir}", self.dims[1:3])
+        data_full = GenderDataset(data_dir=f"{self.data_dir}",
+                                  size=self.dims[1:3],
+                                  augmentation=self.augmentation)
 
         print(len(data_full))
         self.train_dataset, self.val_dataset = random_split(
@@ -80,7 +88,7 @@ class GenderDataModule(LightningDataModule):
 
 
 if __name__ == "__main__":
-    dm = GenderDataModule(128, 2, [3, 64, 64], "./data/GENDER")
+    dm = GenderDataModule(128, 2, [3, 64, 64], "./data/gender", True)
     dm.setup()
     train_dataloader = dm.train_dataloader()
 

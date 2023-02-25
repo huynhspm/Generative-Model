@@ -1,0 +1,20 @@
+t_range: 1000
+img_dims:
+- 1
+- 32
+- 32
+channels: 64
+backbone: Resnet
+n_layer_blocks: 2
+channel_multipliers:
+- 1
+- 2
+- 4
+- 4
+attention: Base
+attention_levels:
+- 0
+- 1
+- 2
+n_attention_heads: 4
+n_attention_layers: 2

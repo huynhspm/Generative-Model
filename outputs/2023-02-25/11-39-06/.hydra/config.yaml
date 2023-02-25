@@ -1,0 +1,81 @@
+callbacks:
+  model_checkpoint:
+    _target_: pytorch_lightning.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch={epoch:03d}-train_loss={train_loss:.3f}-val_loss={val_loss:.3f}
+    monitor: val_loss
+    verbose: false
+    save_last: true
+    save_top_k: 1
+    mode: min
+    auto_insert_metric_name: false
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: null
+    save_on_train_epoch_end: null
+datamodule:
+  _target_: datamodules.fashion.FashionDataModule
+  batch_size: 16
+  num_workers: 2
+  dims:
+  - 1
+  - 32
+  - 32
+  data_dir: ./data
+  augmentation: false
+logger:
+  comet:
+    _target_: pytorch_lightning.loggers.CometLogger
+    api_key: KBqAQ4HR8py3gXcbO7Iqa0vZe
+    save_dir: ${paths.output_dir}/logs/comet
+    project_name: mnist
+    rest_api_key: null
+    experiment_name: 2_ResnetBlock-2_BaseAttention_0_1_2
+    experiment_key: null
+    offline: false
+    prefix: ''
+  tensorboard:
+    _target_: pytorch_lightning.loggers.TensorBoardLogger
+    save_dir: ${paths.output_dir}/logs/tensorboard
+    name: mnist
+    log_graph: false
+    default_hp_metric: true
+    prefix: ''
+model:
+  _target_: models.diffusion.DiffusionModel
+  t_range: 1000
+  img_dims:
+  - 3
+  - 32
+  - 32
+  channels: 64
+  backbone: Resnet
+  n_layer_blocks: 2
+  channel_multipliers:
+  - 1
+  - 2
+  - 4
+  - 4
+  attention: Transformer
+  attention_levels:
+  - 1
+  - 2
+  n_attention_heads: 4
+  n_attention_layers: 2
+trainer:
+  _target_: pytorch_lightning.Trainer
+  min_epochs: 1
+  max_epochs: 20
+  accelerator: gpu
+  devices: 1
+  log_every_n_steps: 10
+paths:
+  root_dir: .
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: ${hydra:runtime.output_dir}
+  work_dir: ${hydra:runtime.cwd}
+load_model: false
+index_checkpoint: -1
+checkpoint_dir: ${paths.root_dir}/outputs/2022-12-30/15-49-49/checkpoints/

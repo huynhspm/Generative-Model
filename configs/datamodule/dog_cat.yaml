@@ -3,4 +3,4 @@ defaults:
 
 _target_: datamodules.dog_cat.DogCatDataModule
 dims: [3, 224, 224]
-data_dir: "./data/DOG_CAT"
+data_dir: "./data/dog_cat"
