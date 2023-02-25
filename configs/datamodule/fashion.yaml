@@ -1,5 +1,0 @@
-defaults:
-  - default
-
-_target_: datamodules.fashion.FashionDataModule
-dims: [1, 32, 32]

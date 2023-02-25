@@ -1,6 +1,0 @@
-defaults:
-  - default
-
-_target_: datamodules.image_net.ImageNetDataModule
-dims: [3, 64, 64]
-data_dir: "./data/tiny-imagenet"

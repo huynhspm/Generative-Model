@@ -1,11 +1,26 @@
-flash_attn==0.2.4
+# --------- pytorch --------- #
+torch==1.12.1
+torchvision==0.13.1
+torchmetrics==0.11.0
+pytorch_lightning==1.8.2
+
+# --------- hydra --------- #
 hydra-core==1.3.0
+hydra-colorlog==1.2.0
+hydra-optuna-sweeper==1.2.0
+
+# --------- loggers --------- #
+# wandb
+# neptune-client
+# mlflow
+# comet-ml
+
+# --------- others --------- #
 imageio==2.22.0
 matplotlib==3.6.0
 numpy==1.23.3
 omegaconf==2.2.3
 opencv_python_headless==4.6.0.66
 opendatasets==0.1.22
-pytorch_lightning==1.8.2
-torch==1.12.1
-torchvision==0.13.1
+pyrootutils==1.0.4
+rich==13.0.1

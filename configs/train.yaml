@@ -1,13 +1,15 @@
 defaults:
-  - callbacks: default
-  - datamodule: fashion
-  - logger: default
-  - model: diffusion
-  - trainer: gpu
-  - paths: default
+  - callbacks: default.yaml
+  - datamodule: diffusion_datamodule.yaml
+  - logger: default.yaml
+  - model: diffusion.yaml
+  - paths: default.yaml
+  - trainer: default.yaml
   - _self_
 
 datamodule:
+  name: "fashion"
+  img_dims: [1, 32, 32]
   batch_size: 16
   augmentation: False
 
@@ -22,6 +24,7 @@ logger:
     name: "mnist"
 
 model:
+  img_dims: ${datamodule.img_dims}
   backbone: "Resnet" # name of blocks for each level
   n_layer_blocks: 2 # number of blocks at each level
   attention: "Base" # name of attentions

@@ -1,5 +1,0 @@
-defaults:
-  - default
-
-_target_: datamodules.cifar.CifarDataModule
-dims: [3, 32, 32]

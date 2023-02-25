@@ -1,7 +1,0 @@
-_target_: datamodules.mnist.MnistDataModule
-
-batch_size: 128
-num_workers: 2
-dims: [1, 32, 32]
-data_dir: "./data"
-augmentation: False
