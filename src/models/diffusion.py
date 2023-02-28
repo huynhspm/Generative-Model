@@ -53,8 +53,6 @@ class DiffusionModel(LightningModule):
                                n_attention_heads=n_attention_heads,
                                n_attention_layers=n_attention_layers)
 
-        print(backbone, n_layer_blocks, attention_levels)
-
         self.save_hyperparameters()
 
     def time_step_embedding(self,
@@ -106,6 +104,7 @@ class DiffusionModel(LightningModule):
                            device=self.device)
         noise_imgs = []
         epsilons = torch.randn(batch.shape, device=self.device)
+
         for i in range(len(ts)):
             a_hat = self.alpha_bar(ts[i])  # alpha bar t
             noise_imgs.append((math.sqrt(a_hat) * batch[i]) +
@@ -129,7 +128,7 @@ class DiffusionModel(LightningModule):
         """
         with torch.no_grad():
             if t > 1:
-                z = torch.randn(x.shape)
+                z = torch.randn(x.shape, device=self.device)
             else:
                 z = 0
             e_hat = self.forward(x, t.view(1, 1).repeat(x.shape[0], 1))
@@ -141,12 +140,12 @@ class DiffusionModel(LightningModule):
 
     def training_step(self, batch, batch_idx):
         loss = self.get_loss(batch, batch_idx)
-        self.log("train_loss", loss)
+        self.log("train/loss", loss)
         return loss
 
     def validation_step(self, batch, batch_idx):
         loss = self.get_loss(batch, batch_idx)
-        self.log("val_loss", loss)
+        self.log("val/loss", loss)
         return loss
 
     def configure_optimizers(self):

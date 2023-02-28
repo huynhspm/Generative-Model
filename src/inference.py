@@ -40,6 +40,7 @@ def my_app(cfg: DictConfig):
     model: LightningModule = DiffusionModel.load_from_checkpoint(
         last_checkpoint)
     model.eval()
+    model.cuda()
 
     gif_shape = cfg.gif_shape
     sample_batch_size = gif_shape[0] * gif_shape[1]
@@ -48,15 +49,17 @@ def my_app(cfg: DictConfig):
     # Generate samples from denoising process
     gen_samples = []
     x = torch.randn(
-        (sample_batch_size, cfg.img_dims[0], cfg.img_dims[1], cfg.img_dims[2]))
-    sample_steps = torch.arange(model.t_range - 1, 0, -1)
+        (sample_batch_size, cfg.img_dims[0], cfg.img_dims[1], cfg.img_dims[2]),
+        device='cuda')
+    sample_steps = torch.arange(model.t_range - 1, 0, -1, device='cuda')
 
     for t in sample_steps:
         x = model.denoise_sample(x, t)
         if t % 50 == 0 or t == 1:
             print(t)
-            gen_samples.append(x)
+            gen_samples.append(x.cpu())
 
+    x = x.cpu()
     for _ in range(n_hold_final):
         gen_samples.append(x)
     gen_samples = torch.stack(gen_samples, dim=0).moveaxis(2, 4).squeeze(-1)

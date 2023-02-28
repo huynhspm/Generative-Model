@@ -4,24 +4,26 @@ defaults:
   - logger: default.yaml
   - model: diffusion.yaml
   - paths: default.yaml
-  - trainer: default.yaml
+  - trainer: gpu.yaml
   - _self_
+
+callbacks:
+  early_stopping: null
+  model_summary: null
+  rich_progress_bar: null
 
 datamodule:
   name: "fashion"
   img_dims: [1, 32, 32]
-  batch_size: 16
+  batch_size: 1
   augmentation: False
-
-trainer:
-  max_epochs: 20
 
 logger:
   comet:
-    project_name: "mnist"
-    experiment_name: "2_ResnetBlock-2_BaseAttention_0_1_2"
+    project_name: "fashion"
+    experiment_name: "ResnetBlock-BaseAttention"
   tensorboard:
-    name: "mnist"
+    name: "fashion"
 
 model:
   img_dims: ${datamodule.img_dims}
@@ -31,6 +33,9 @@ model:
   attention_levels: [0, 1, 2] # the levels at which attention should be performed
   n_attention_heads: 4 # is the number of attention heads
   n_attention_layers: 2 # is the number of attention layers
+
+trainer:
+  max_epochs: 15
 
 load_model: False
 index_checkpoint: -1

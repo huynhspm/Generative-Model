@@ -20,8 +20,7 @@ Diffusion model is a type of generative model. Its approach is different from GA
 
   Before, go to "config.yaml" to change parameters
 
-    Train: python src/train.py 
-  : python src.py
+    Train: python src/train.py
 
 ## **Model**
 ### **Dataset**
