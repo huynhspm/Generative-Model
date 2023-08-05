@@ -1,9 +1,0 @@
-_target_: datamodule.DiffusionDataModule
-
-root: "./data"
-name: "fashion"
-img_dims: [1, 32, 32]
-augmentation: False
-batch_size: 64
-num_workers: 4
-pin_memory: False

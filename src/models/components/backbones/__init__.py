@@ -1,15 +1,15 @@
-from .base import BaseBlock
-from .resnet import ResnetBlock
-from .inception import InceptionBlock
-from .vgg import VGGBlock
-from .dense import DenseBlock
+from .simple_net import SimpleBlock
+from .res_net import ResnetBlock
+from .inception_net import InceptionBlock
+from .vgg_net import VGGBlock
+from .dense_net import DenseBlock
 
 Backbones = {
-    "Base": BaseBlock,
-    "Resnet": ResnetBlock,
-    "Inception": InceptionBlock,
-    "VGG": VGGBlock,
-    "Dense": DenseBlock,
+    "Base": SimpleBlock,
+    "ResNet": ResnetBlock,
+    "InceptionNet": InceptionBlock,
+    "VGGNet": VGGBlock,
+    "DenseNet": DenseBlock,
 }
 
 

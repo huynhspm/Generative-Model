@@ -1,22 +1,22 @@
 defaults:
-  - model_checkpoint.yaml
-  - early_stopping.yaml
-  - model_summary.yaml
-  - rich_progress_bar.yaml
+  - model_checkpoint
+  - early_stopping
+  - model_summary
+  - rich_progress_bar
   - _self_
 
 model_checkpoint:
   dirpath: ${paths.output_dir}/checkpoints
-  filename: "epoch={epoch:03d}-train/loss={train/loss:.3f}-val/loss={val/loss:.3f}" #"epoch={epoch:03d}"
-  monitor: "val/loss"
-  mode: "min"
+  filename: "epoch_{epoch:03d}"
+  monitor: "val/acc"
+  mode: "max"
   save_last: True
   auto_insert_metric_name: False
 
 early_stopping:
-  monitor: "val/loss"
+  monitor: "val/acc"
   patience: 100
-  mode: "min"
+  mode: "max"
 
 model_summary:
   max_depth: -1

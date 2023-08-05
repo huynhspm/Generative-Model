@@ -8,7 +8,10 @@ class AttnBlock(nn.Module):
     ## Attention block
     """
 
-    def __init__(self, channels: int):
+    def __init__(self, 
+                 channels: int,
+                 n_heads: int = None, 
+                 n_layers: int = None):
         """
         channels: is the number of channels
         """

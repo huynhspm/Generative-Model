@@ -1,81 +1,52 @@
+from typing import List
+import os
+import time
 import torch
 import hydra
-import glob
-import imageio
+import pyrootutils
 from omegaconf import DictConfig
-from pytorch_lightning import LightningModule
-from models.diffusion import DiffusionModel
+from torchvision.utils import make_grid, save_image
 
+pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-def save_image(filename, img):
-    img = (img.clamp(-1, 1) + 1) / 2
-    img = (img * 255).type(torch.uint8)
-    imageio.imsave(filename, img)
-
-
-def stack_samples(gen_samples, stack_dim):
-    gen_samples = list(torch.split(gen_samples, 1, dim=1))
-    for i in range(len(gen_samples)):
-        gen_samples[i] = gen_samples[i].squeeze(1)
-    return torch.cat(gen_samples, dim=stack_dim)
-
-
-def save_gif(filename, gen_samples):
-    gen_samples = (gen_samples.clamp(-1, 1) + 1) / 2
-    gen_samples = (gen_samples * 255).type(torch.uint8)
-
-    gen_samples = stack_samples(gen_samples, 2)
-    gen_samples = stack_samples(gen_samples, 2)
-
-    imageio.mimsave(filename, list(gen_samples), fps=5)
-
+from src.models import ConditionDiffusionModule
+from src.models.components import DiffusionModel
 
 @hydra.main(version_base=None,
             config_path="../configs",
             config_name="inference")
 def my_app(cfg: DictConfig):
-    last_checkpoint = glob.glob(cfg.checkpoint_dir +
-                                "*.ckpt")[cfg.index_checkpoint]
+    checkpoint = os.path.join(cfg.checkpoint_dir, cfg.checkpoint + ".ckpt")
 
-    model: LightningModule = DiffusionModel.load_from_checkpoint(
-        last_checkpoint)
+    print(checkpoint)
+    net: DiffusionModel = hydra.utils.instantiate(cfg.get("model")['net'])
+
+    # model: DiffusionModule = DiffusionModule.load_from_checkpoint(checkpoint, net=net)
+    model: ConditionDiffusionModule = ConditionDiffusionModule.load_from_checkpoint(checkpoint, net=net)
+
     model.eval()
-    model.cuda()
+    model.to(cfg.device)
 
-    gif_shape = cfg.gif_shape
-    sample_batch_size = gif_shape[0] * gif_shape[1]
-    n_hold_final = 10
+    num_samples = cfg.gen_shape[0] * cfg.gen_shape[1]
+    mean = torch.Tensor(cfg.mean).reshape(1, -1, 1, 1)
+    std = torch.Tensor(cfg.std).reshape(1, -1, 1, 1)
 
+    cond = torch.arange(0, 10, device=cfg.device).repeat(10)
     # Generate samples from denoising process
-    gen_samples = []
-    x = torch.randn(
-        (sample_batch_size, cfg.img_dims[0], cfg.img_dims[1], cfg.img_dims[2]),
-        device='cuda')
-    sample_steps = torch.arange(model.t_range - 1, 0, -1, device='cuda')
+    batch_samples = model.net.get_p_sample(
+            num_sample=num_samples,
+            gen_type=cfg.gen_type,
+            device=cfg.device,
+            cond=cond,
+            prog_bar=True)
 
-    for t in sample_steps:
-        x = model.denoise_sample(x, t)
-        if t % 50 == 0 or t == 1:
-            print(t)
-            gen_samples.append(x.cpu())
+    images = batch_samples[-1]
+    images = (images * std + mean).clamp(0, 1)
+    filename = cfg.checkpoint_dir + f"{cfg.checkpoint}_{cfg.gen_type}"
+    save_image(images, filename + '.jpg', nrow=cfg.gen_shape[0])
 
-    x = x.cpu()
-    for _ in range(n_hold_final):
-        gen_samples.append(x)
-    gen_samples = torch.stack(gen_samples, dim=0).moveaxis(2, 4).squeeze(-1)
-    gen_samples = gen_samples.reshape(-1, gif_shape[0], gif_shape[1],
-                                      cfg.img_dims[1], cfg.img_dims[2],
-                                      cfg.img_dims[0])
-
-    x = x.moveaxis(1, 3)
-    img = []
-    for i in range(sample_batch_size):
-        img.append(x[i])
-    img = torch.cat(img, dim=1)
-
-    save_image(cfg.checkpoint_dir + f"{cfg.name_img}.jpg", img)
-    save_gif(cfg.checkpoint_dir + f"{cfg.name_img}.gif", gen_samples)
-
-
-if __name__ == "__main__":
+if __name__ == "__main__" :
+    start_time = time.time()
     my_app()
+    end_time = time.time()
+    print('total time: ', (end_time - start_time) / 60)

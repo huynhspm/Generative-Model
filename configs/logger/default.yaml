@@ -1,3 +1,0 @@
-defaults:
-  - comet.yaml
-  - tensorboard.yaml

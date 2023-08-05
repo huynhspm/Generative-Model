@@ -1,9 +1,16 @@
 defaults:
-  - paths: default
+  - data: cifar10.yaml
+  - model: diffusion.yaml
+  - paths: default.yaml
+  - extras: default.yaml
+  - hydra: default.yaml
   - _self_
 
-index_checkpoint: 0
-name_img: "test1"
-img_dims: [3, 64, 64]
-gif_shape: [1, 5]
-checkpoint_dir: "${paths.root_dir}/outputs/2022-12-31/22-01-32/checkpoints/"
+task_name: inference
+device: cuda
+checkpoint: last
+gen_type: ddpm
+gen_shape: [10, 10]
+checkpoint_dir: "${paths.log_dir}/train/runs/2023-03-25_16-20-52/checkpoints/"
+mean: ${data.transform_train.transforms[-2].mean}
+std: ${data.transform_train.transforms[-2].std}

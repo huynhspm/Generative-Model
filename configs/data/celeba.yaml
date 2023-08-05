@@ -1,0 +1,14 @@
+_target_: src.data.DiffusionDataModule
+
+defaults:
+  - transform_train: celeba.yaml
+  - transform_val: celeba.yaml
+  - _self_
+
+data_dir: ${paths.data_dir}
+train_val_test_split: [24_000, 3_000, 3_000]
+batch_size: 128
+num_workers: 0
+pin_memory: True
+dataset_name: celeba
+n_classes: -1

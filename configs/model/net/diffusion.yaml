@@ -1,0 +1,12 @@
+_target_: src.models.components.DiffusionModel
+
+defaults:
+  - denoise_model: unet.yaml
+  - _self_
+
+n_steps: 1000 # the number of diffusion step
+img_dims:
+  - ${model.net.denoise_model.img_channels}
+  - ${data.transform_val.transforms[0].height}
+  - ${data.transform_val.transforms[0].width}
+schedule_name: base

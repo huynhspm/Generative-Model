@@ -1,0 +1,14 @@
+_target_: src.data.DiffusionDataModule
+
+defaults:
+  - transform_train: gender.yaml
+  - transform_val: gender.yaml
+  - _self_
+
+data_dir: ${paths.data_dir}
+train_val_test_split: [182_599, 10_000, 10_000]
+batch_size: 128
+num_workers: 0
+pin_memory: True
+dataset_name: gender
+n_classes: 2

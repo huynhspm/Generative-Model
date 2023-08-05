@@ -1,42 +1,52 @@
+# @package _global_
+
+# specify here default configuration
+# order of defaults determines the order in which configs override each other
 defaults:
-  - callbacks: default.yaml
-  - datamodule: diffusion_datamodule.yaml
-  - logger: default.yaml
-  - model: diffusion.yaml
-  - paths: default.yaml
-  - trainer: gpu.yaml
   - _self_
+  - data: default
+  - model: diffusion
+  - callbacks: default
+  - logger: null # set logger here or use command line (e.g. `python train.py logger=tensorboard`)
+  - trainer: default
+  - paths: default
+  - extras: default
+  - hydra: default
 
-callbacks:
-  early_stopping: null
-  model_summary: null
-  rich_progress_bar: null
+  # experiment configs allow for version control of specific hyperparameters
+  # e.g. best hyperparameters for given model and datamodule
+  - experiment: null
 
-datamodule:
-  name: "fashion"
-  img_dims: [1, 32, 32]
-  batch_size: 1
-  augmentation: False
+  # config for hyperparameter optimization
+  - hparams_search: null
 
-logger:
-  comet:
-    project_name: "fashion"
-    experiment_name: "ResnetBlock-BaseAttention"
-  tensorboard:
-    name: "fashion"
+  # optional local config for machine/user specific settings
+  # it's optional since it doesn't need to exist and is excluded from version control
+  - optional local: default
 
-model:
-  img_dims: ${datamodule.img_dims}
-  backbone: "Resnet" # name of blocks for each level
-  n_layer_blocks: 2 # number of blocks at each level
-  attention: "Base" # name of attentions
-  attention_levels: [0, 1, 2] # the levels at which attention should be performed
-  n_attention_heads: 4 # is the number of attention heads
-  n_attention_layers: 2 # is the number of attention layers
+  # debugging config (enable through command line, e.g. `python train.py debug=default)
+  - debug: null
 
-trainer:
-  max_epochs: 15
+# task name, determines output directory path
+task_name: "train"
 
-load_model: False
-index_checkpoint: -1
-checkpoint_dir: "${paths.root_dir}/outputs/2022-12-30/15-49-49/checkpoints/"
+# tags to help you identify your experiments
+# you can overwrite this in experiment configs
+# overwrite from command line with `python train.py tags="[first_tag, second_tag]"`
+tags: ["dev"]
+
+# set False to skip model training
+train: True
+
+# evaluate on test set, using best model weights achieved during training
+# lightning chooses best weights based on the metric specified in checkpoint callback
+test: True
+
+# compile model for faster training with pytorch 2.0
+compile: False
+
+# simply provide checkpoint path to resume training
+ckpt_path: null
+
+# seed for random number generators in pytorch, numpy and python.random
+seed: null

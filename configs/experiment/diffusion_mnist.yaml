@@ -1,0 +1,38 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=example
+
+defaults:
+  - override /data: mnist.yaml
+  - override /model: diffusion_module.yaml
+  - override /callbacks: diffusion.yaml
+  - override /trainer: ddp.yaml
+  - override /logger: wandb.yaml
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+seed: 12345
+
+task_name: "train_diffusion"
+
+trainer:
+  max_epochs: 50
+  devices: 1
+
+data:
+  batch_size: 256
+  num_workers: 36
+
+logger:
+  wandb:
+    name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    project: "diffusion"
+    tags: ${tags}
+    group: ${data.dataset_name}
+
+callbacks:
+  diff:
+    callbacks:
+      - sample

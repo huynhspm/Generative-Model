@@ -1,11 +1,13 @@
-from .base import SAWrapper
+from .self_attention import SAWrapper
 from .attention import AttnBlock
 from .spatial_transfomer import SpatialTransformer
+from .cross_attention import CAWrapper
 
 Attentions = {
-    "Base": SAWrapper,
+    "SelfAttention": SAWrapper,
     "Transformer": SpatialTransformer,
     "Attention": AttnBlock,
+    "CrossAttention":CAWrapper,
 }
 
 
