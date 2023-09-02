@@ -3,6 +3,8 @@ defaults:
   - early_stopping.yaml
   - model_summary.yaml
   - rich_progress_bar.yaml
+  - lr_monitor.yaml
+  - gen_sample.yaml
   - _self_
 
 model_checkpoint:
@@ -21,14 +23,9 @@ early_stopping:
 model_summary:
   max_depth: -1
 
-diff:
-  _target_: src.utils.callbacks.DiffusionCallback
-  gen_shape: [10, 10]
-  gen_type: ddim
-  mean: ${data.transform_val.transforms[1].mean}
-  std: ${data.transform_val.transforms[1].std}
-  callbacks:
-    - sample
-    - fid
-    - is
-  feature: 64
+callbacks:
+  gen_sample:
+    grid_shape: [10, 10]
+    metrics:
+      - is
+      - fid

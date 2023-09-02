@@ -1,0 +1,10 @@
+_target_: src.models.vae.net.VQVAE
+
+img_dims:
+  - 3
+  - 32
+  - 32
+z_channels: 32
+num_embeddings: 512
+hidden_dims: [128, 256]
+beta: 0.25

@@ -9,8 +9,8 @@ from torchvision.utils import make_grid, save_image
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models import ConditionDiffusionModule
-from src.models.components import DiffusionModel
+from src.generative_models import DiffusionModule, ConditionDiffusionModule
+from src.generative_models.components import DiffusionModel
 
 @hydra.main(version_base=None,
             config_path="../configs",
@@ -20,9 +20,8 @@ def my_app(cfg: DictConfig):
 
     print(checkpoint)
     net: DiffusionModel = hydra.utils.instantiate(cfg.get("model")['net'])
-
-    # model: DiffusionModule = DiffusionModule.load_from_checkpoint(checkpoint, net=net)
-    model: ConditionDiffusionModule = ConditionDiffusionModule.load_from_checkpoint(checkpoint, net=net)
+    model: DiffusionModule = hydra.utils.instantiate(cfg.get("model"))
+    model = model.load_from_checkpoint(checkpoint, net=net)
 
     model.eval()
     model.to(cfg.device)
@@ -30,17 +29,29 @@ def my_app(cfg: DictConfig):
     num_samples = cfg.gen_shape[0] * cfg.gen_shape[1]
     mean = torch.Tensor(cfg.mean).reshape(1, -1, 1, 1)
     std = torch.Tensor(cfg.std).reshape(1, -1, 1, 1)
-
-    cond = torch.arange(0, 10, device=cfg.device).repeat(10)
+    cond = None
+    if isinstance(model, ConditionDiffusionModule):
+        cond = torch.arange(0, 10, device=cfg.device).repeat(10)
+    
     # Generate samples from denoising process
-    batch_samples = model.net.get_p_sample(
-            num_sample=num_samples,
-            gen_type=cfg.gen_type,
-            device=cfg.device,
-            cond=cond,
-            prog_bar=True)
+    if model.use_ema:
+        # generate sample by ema_model
+        with model.ema_scope():
+            batch_samples = model.net.get_p_sample(
+                    num_sample=num_samples,
+                    gen_type=cfg.gen_type,
+                    device=cfg.device,
+                    cond=cond,
+                    prog_bar=True)
+    else:
+        batch_samples = model.net.get_p_sample(
+                    num_sample=num_samples,
+                    gen_type=cfg.gen_type,
+                    device=cfg.device,
+                    cond=cond,
+                    prog_bar=True)
 
-    images = batch_samples[-1]
+    images = batch_samples[-1].cpu()
     images = (images * std + mean).clamp(0, 1)
     filename = cfg.checkpoint_dir + f"{cfg.checkpoint}_{cfg.gen_type}"
     save_image(images, filename + '.jpg', nrow=cfg.gen_shape[0])

@@ -1,0 +1,23 @@
+_target_: src.models.diffusion.net.DiffusionModel
+
+n_steps: 1000 # the number of diffusion step
+img_dims:
+  - ${model.net.denoise_net.img_channels}
+  - ${data.transform_val.transforms[0].height}
+  - ${data.transform_val.transforms[0].width}
+schedule_noise: linear
+denoise_net:
+  _target_: src.models.unet.UNet
+
+  img_channels: 1 # the channel count of the image
+  channels: 64 # the base channel count for the model
+  block: Residual # name of blocks for each level
+  n_layer_blocks: 1 # number of blocks at each level
+  channel_multipliers: [1, 2, 4, 4] # the multiplicative factors for number of channels for each level
+  attention: SelfAttention # name of attentions for each level
+  attention_levels: [1, 2] # the levels at which attention should be performed
+  n_attention_heads: 4 # the number of attention heads
+  n_attention_layers: 1 # the number of attention layers
+  n_classes: null # the number class
+  drop_rate: 0 # drop out layer
+

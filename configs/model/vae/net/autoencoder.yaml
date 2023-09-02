@@ -1,0 +1,16 @@
+_target_: src.models.vae.net.AutoEncoder
+
+kld_weight:
+  - ${data.batch_size}
+  - ${data.train_val_test_split[0]}
+
+img_dims:
+  - 3
+  - 32
+  - 32
+z_channels: 32
+channels: 32
+block: Residual
+n_layer_blocks: 1
+channel_multipliers: [1, 2, 4]
+attention: Attention

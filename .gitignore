@@ -149,8 +149,10 @@ configs/local/default.yaml
 /data/
 /logs/
 .env
-/data
-/logs
-/outputs/
-train_autoencoder.sh
+
+# Aim logging
+.aim
+
+/outputs
+train_vae.sh
 train_diffusion.sh

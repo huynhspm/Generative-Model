@@ -5,7 +5,7 @@
 
 defaults:
   - override /data: cifar10.yaml
-  - override /model: diffusion_module.yaml
+  - override /model: diffusion/diffusion_module.yaml
   - override /callbacks: diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -18,19 +18,19 @@ seed: 12345
 task_name: "train_diffusion"
 
 trainer:
-  max_epochs: 500
+  max_epochs: 2000
   devices: 1
+  gradient_clip_val: 1.0
 
 data:
-  batch_size: 32
-  num_workers: 36
+  batch_size: 128
+  num_workers: 20
 
 model:
   net:
-    denoise_model:
+    denoise_net:
       img_channels: 3
       n_layer_blocks: 2
-      n_attention_heads: 8
 
 logger:
   wandb:
@@ -40,9 +40,7 @@ logger:
     group: ${data.dataset_name}
 
 callbacks:
-  diff:
-    callbacks:
-      - sample
-      - fid
-      - is
-    feature: 64
+  early_stopping: null
+  gen_sample:
+    grid_shape: [5, 10]
+    metrics: []

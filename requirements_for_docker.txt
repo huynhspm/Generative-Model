@@ -2,6 +2,7 @@
 pytorch-lightning ==1.9.2
 torchmetrics #==0.11.1
 torchmetrics[image] #==0.11.4
+torch-ema
 
 # --------- hydra --------- #
 hydra-core #==1.3.1
@@ -20,6 +21,7 @@ pre-commit      # hooks for applying linters on commit
 rich            # beautiful text formatting in terminal
 pytest          # tests
 # sh            # for running bash commands in some tests (linux/macos only)
+timm
 
 # --------- data augmentation --------- #
 albumentations #>=1.3.0

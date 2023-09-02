@@ -1,0 +1,22 @@
+_target_: src.models.diffusion.ConditionDiffusionModule
+
+defaults:
+  - net: diffusion_model.yaml
+  - _self_
+
+net:
+  denoise_net:
+    n_classes: ${data.n_classes}
+    attention: CrossAttention
+
+use_ema: true
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.0002
+  weight_decay: 0.0
+
+scheduler:
+  _target_: src.utils.lr_scheduler.LambdaWarmUpScheduler3
+  warm_up_steps: 5000

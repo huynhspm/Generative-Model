@@ -1,0 +1,33 @@
+_target_: src.models.vae.VAEModule
+
+use_ema: true
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.001
+  weight_decay: 0.0
+
+scheduler:
+  _target_: torch.optim.lr_scheduler.ExponentialLR
+  _partial_: true
+  gamma: 0.95
+
+net:
+  _target_: src.models.vae.net.AutoEncoder
+
+  kld_weight:
+    - ${data.batch_size}
+    - ${data.train_val_test_split[0]}
+
+  img_dims:
+    - 3
+    - ${data.transform_val.transforms[0].height}
+    - ${data.transform_val.transforms[0].width}
+
+  z_channels: 32
+  channels: 32
+  block: Residual
+  n_layer_blocks: 1
+  channel_multipliers: [1, 2, 4]
+  attention: Attention
