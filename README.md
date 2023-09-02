@@ -9,10 +9,10 @@ Diffusion model is a type of generative model. Its approach is different from GA
 
 ## **2. Set Up**
   ### **Clone the repository**
-    https://github.com/huynhspm/Diffusion-Model
+    https://github.com/huynhspm/Generative-Model
     
   ### **Install environment packages**
-    cd Diffusion-Model
+    cd Generative-Model
     conda create -n diffusion python=3.10
     conda activate diffusion 
     pip install -r requirements.txt
@@ -23,6 +23,12 @@ Diffusion model is a type of generative model. Its approach is different from GA
     export CUDA_VISIBLE_DEVICES=0,1
     export WANDB_API_KEY=???
     python src/train.py experiment=diffusion_mnist trainer.devices=2
+  ### **Training VAE**
+  set-up CUDA_VISIBLE_DEVICES and WANDB_API_KEY before training
+  
+    export CUDA_VISIBLE_DEVICES=0
+    export WANDB_API_KEY=???
+    python src/train.py experiment=vae_celeba trainer.devices=1
   ### **Inference**
     Inference: 
 
@@ -57,24 +63,42 @@ Diffusion model is a type of generative model. Its approach is different from GA
   - Conditional diffusion model (label)
 ## **4. RESULTS**
 ### **4.1. Unconditional Diffusion**
-![Mnist Generation](results/MNIST/mnist_uncondition.png)
-![Fashion Generation](results/FASHION/fashion_uncondition.jpg)
-![Cifar10 Generation](results/CIFAR10/cifar10.jpg)    
+![Mnist Generation](results/dm/mnist/mnist_uncondition.png)
+![Fashion Generation](results/dm/fashion/fashion_uncondition.jpg)
+![Cifar10 Generation](results/dm/cifar10/cifar10_uncondition.jpg)    
 ### **4.2. Conditional Diffusion**
 #### **MINST and FASHION-MNIST**
-![Mnist Generation](results/MNIST/mnist_condition.jpg)
-![Fashion Generation](results/FASHION/fashion_condition.jpg)
+![Mnist Generation](results/dm/mnist/mnist_condition.jpg)
+![Fashion Generation](results/dm/fashion/fashion_condition.jpg)
+#### **CIFAR10**:
+![Cifar10 Generation](results/dm/cifar10/cifar10_condition.jpg)
 #### **GENDER**: 
 - MALE and FEMALE
 
-![Male Generation](results/GENDER/male.jpg)
-![Male Generation](results/GENDER/male.gif)
-![Female Generation](results/GENDER/female.jpg)
-![Female Generation](results/GENDER/female.gif)
+![Male Generation](results/dm/gender/male.jpg)
+![Male Generation](results/dm/gender/male.gif)
+![Female Generation](results/dm/gender/female.jpg)
+![Female Generation](results/dm/gender/female.gif)
 ### **4.3 DDPM and DDIM**
 #### **DDPM**
-![DDPM Generation](results/GENDER/gender_ddpm.jpg)
+![DDPM Generation](results/dm/gender/gender_ddpm.jpg)
 #### **DDIM**
-![DDIM Generation](results/GENDER/gender_ddim.jpg)
-### **4.4 INTERPOLATION**
-![Interpolation Generation](results/GENDER/interpolation.jpg)
+![DDIM Generation](results/dm/gender/gender_ddim.jpg)
+### **4.4 DIFFUSION INTERPOLATION**
+![Interpolation Generation](results/dm/gender/interpolation.jpg)
+### **4.5 VAE RECONSTRUCTION**
+#### **CIFAR10**
+![Cifar10 Reconstruction](results/vae/cifar10/reconstruction.jpg)
+#### **DOGCAT**
+![Dogcat Reconstruction](results/vae/dogcat/reconstruction.jpg)
+#### **GENDER**
+![Gender Reconstruction](results/vae/gender/reconstruction.jpg)
+#### **CELEBA**
+![Celeba Reconstruction](results/cae/../vae/celeba/reconstruction.jpg)
+### **4.5 VAE INTERPOLATION**
+#### **CIFAR10**
+![Cifar10 Interpolation](results/vae/cifar10/interpolation.jpg)
+#### **DOGCAT**
+![Dogcat Interpolation](results/vae/dogcat/interpolation.jpg)
+#### **CELEBA**
+![Celeba Interpolation](results/vae/celeba/interpolationion.jpg)
