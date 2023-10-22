@@ -22,7 +22,7 @@ class TimeEmbedding(nn.Module):
         self.time_embedding = nn.Sequential(
             nn.Embedding.from_pretrained(emb),
             nn.Linear(d_model, dim),
-            nn.SiLU(),
+            nn.SiLU(inplace=True),
             nn.Linear(dim, dim),
         )
 

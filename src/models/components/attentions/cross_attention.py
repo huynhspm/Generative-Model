@@ -1,6 +1,5 @@
-from typing import Optional
-
 import torch
+from torch import Tensor
 import torch.nn as nn
 
 
@@ -17,7 +16,7 @@ class CrossAttention(nn.Module):
             nn.Linear(channels, channels),
         )
 
-    def forward(self, x: torch.Tensor, cond: Optional[torch.Tensor] = None):
+    def forward(self, x: Tensor, cond: Tensor | None = None):
         """
         x: shape [b, c, w*h]
         """
@@ -37,30 +36,35 @@ class CAWrapper(nn.Module):
                  channels: int,
                  n_heads: int,
                  n_layers: int,
-                 d_cond: Optional[int] = None):
+                 d_cond: int | None = None):
         super(CAWrapper, self).__init__()
-        self.ca_layers = nn.ModuleList([CrossAttention(channels, n_heads) for _ in range(n_layers)])
+        self.ca_layers = nn.ModuleList(
+            [CrossAttention(channels, n_heads) for _ in range(n_layers)])
 
         if d_cond is not None:
             self.linear = nn.Linear(d_cond, channels)
 
-    def forward(self, x: torch.Tensor, cond: Optional[torch.Tensor] = None):
+    def forward(self, x: Tensor, cond: Tensor | None = None):
         batch_size, channels, size, _ = x.shape
         x = x.view(batch_size, channels, -1).swapaxes(1, 2)
-    
+
         if cond is not None:
-            cond = self.linear(cond).unsqueeze(1)
+            cond = self.linear(cond)
 
         for ca in self.ca_layers:
             x = ca(x, cond)
-            
+
         x = x.swapaxes(2, 1).view(batch_size, channels, size, size)
+
+        # because: Warning: Grad strides do not match bucket view strides
+        x = x.contiguous()
+
         return x
 
 
 if __name__ == "__main__":
     input = torch.randn(2, 256, 16, 16)
-    cond = torch.randn(2, 128)
+    cond = torch.randn(2, 1, 128)
     ca = CAWrapper(256, 4, 1, 128)
     output = ca(input, cond)
     print(output.shape)

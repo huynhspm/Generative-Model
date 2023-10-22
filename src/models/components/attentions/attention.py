@@ -18,7 +18,7 @@ class AttnBlock(nn.Module):
         super().__init__()
 
         # normalization
-        self.norm = nn.Sequential(nn.GroupNorm(32, channels), nn.SiLU())
+        self.norm = nn.Sequential(nn.GroupNorm(32, channels), nn.SiLU(inplace=True))
 
         # Query, key and value mappings
         self.q = nn.Conv2d(channels, channels, 1)
@@ -57,6 +57,9 @@ class AttnBlock(nn.Module):
 
         # Compute $\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)V$
         out = torch.einsum('bij, bcj->bci', attn, v)
+
+        # because: Warning: Grad strides do not match bucket view strides
+        out = out.contiguous()
 
         # Reshape back to `[batch_size, channels, height, width]`
         out = out.view(b, c, h, w)

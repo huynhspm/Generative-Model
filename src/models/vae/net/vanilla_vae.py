@@ -38,7 +38,7 @@ class VanillaVAE(BaseVAE):
                     nn.Conv2d(in_channels, out_channels=h_dim,
                               kernel_size=3, stride=2, padding=1),
                     nn.BatchNorm2d(h_dim),
-                    nn.LeakyReLU())
+                    nn.LeakyReLU(inplace=True))
             )
             in_channels = h_dim
 
@@ -70,7 +70,7 @@ class VanillaVAE(BaseVAE):
                                        padding=1,
                                        output_padding=1),
                     nn.BatchNorm2d(hidden_dims[i + 1]),
-                    nn.LeakyReLU())
+                    nn.LeakyReLU(inplace=True))
             )
 
 
@@ -85,7 +85,7 @@ class VanillaVAE(BaseVAE):
                                                padding=1,
                                                output_padding=1),
                             nn.BatchNorm2d(hidden_dims[-1]),
-                            nn.LeakyReLU(),
+                            nn.LeakyReLU(inplace=True),
                             nn.Conv2d(hidden_dims[-1], out_channels= 3,
                                       kernel_size= 3, padding= 1),
                             nn.Tanh())

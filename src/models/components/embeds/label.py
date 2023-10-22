@@ -9,12 +9,12 @@ class LabelEmbedding(nn.Module):
 
         self.label_embedding = nn.Sequential(nn.Embedding(num_embeddings=n_classes, 
                                                           embedding_dim=d_cond),
-                                             nn.SiLU(),
+                                             nn.SiLU(inplace=True),
                                              nn.Linear(in_features=d_cond, 
                                                        out_features=d_cond))
         
     def forward(self, label: torch.Tensor):
-        return self.label_embedding(label)
+        return self.label_embedding(label).unsqueeze(1)
 
 
 if __name__ == "__main__":

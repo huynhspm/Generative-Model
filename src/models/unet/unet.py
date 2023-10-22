@@ -1,4 +1,4 @@
-from typing import List, Optional
+from typing import List
 
 import torch
 import pyrootutils
@@ -9,8 +9,9 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.components.blocks import init_block, get_all_blocks
 from src.models.components.attentions import init_attention, get_all_attentions
-from src.models.components.embeds import TimeEmbedding, LabelEmbedding
-from src.models.components.sample import DownSample, UpSample
+from src.models.components.embeds import TimeEmbedding
+from src.models.components.up_down import DownSample, UpSample
+
 
 class UNet(nn.Module):
     """
@@ -27,7 +28,7 @@ class UNet(nn.Module):
                  attention_levels: List[int] = [1, 2],
                  n_attention_heads: int = 4,
                  n_attention_layers: int = 1,
-                 n_classes: int = None,
+                 d_cond: int = None,
                  drop_rate: float = 0.) -> None:
         """
         img_channels: the number of channels in the input feature map
@@ -39,7 +40,8 @@ class UNet(nn.Module):
         attention_levels: the levels at which attention should be performed
         n_attention_heads: the number of attention heads
         n_attention_layers: the number of attention layers
-        n_classes: the number of classes
+        d_cond: the number of dimension of condition
+        drop_rate: percentage of dropout
         """
         super().__init__()
 
@@ -51,14 +53,6 @@ class UNet(nn.Module):
         # layer for time embeddings
         self.time_embed = TimeEmbedding(channels, d_time_emb)
 
-        d_cond = None
-        # Size condition embeddings
-        if n_classes is not None:
-            d_cond = channels * channel_multipliers[-1]
-
-            # layer for label embeddings
-            self.cond_embed = LabelEmbedding(n_classes=n_classes, d_cond=d_cond)
-
         # number of levels (downSample and upSample)
         levels = len(channel_multipliers)
 
@@ -69,7 +63,8 @@ class UNet(nn.Module):
         Block = init_block(block)
 
         # attention layer
-        Attention = init_attention(attention)
+        Attention = init_attention(
+            attention) if attention is not None else None
 
         # input half of the U-Net
         self.down = nn.ModuleList()
@@ -98,7 +93,7 @@ class UNet(nn.Module):
                 input_block_channels.append(channels)
 
                 # add attention layer
-                if i in attention_levels:
+                if attention is not None and i in attention_levels:
                     layers.append(
                         Attention(
                             channels=channels,
@@ -127,6 +122,10 @@ class UNet(nn.Module):
                 n_heads=n_attention_heads,
                 n_layers=n_attention_layers,
                 d_cond=d_cond,
+            ) if attention is not None else Block(
+                in_channels=channels,
+                d_t_emb=d_time_emb,
+                drop_rate=drop_rate,
             ),
             Block(
                 in_channels=channels,
@@ -154,7 +153,7 @@ class UNet(nn.Module):
                 channels = channels_list[i]
 
                 # add attention layer
-                if i in attention_levels:
+                if attention is not None and i in attention_levels:
                     layers.append(
                         Attention(
                             channels=channels,
@@ -170,14 +169,14 @@ class UNet(nn.Module):
 
         self.conv_out = nn.Sequential(
             nn.GroupNorm(32, channels),
-            nn.SiLU(),
+            nn.SiLU(inplace=True),
             nn.Conv2d(channels, img_channels, 3, padding=1),
         )
 
     def forward(self,
                 x: Tensor,
                 time_steps: Tensor,
-                cond: Optional[Tensor] = None):
+                cond: Tensor | None = None):
         """
         :param x: is the input feature map of shape `[batch_size, channels, width, height]`
         :param time_steps: are the time steps of shape `[batch_size]`
@@ -189,9 +188,6 @@ class UNet(nn.Module):
 
         # get time step embeddings
         t_emb = self.time_embed(time_steps)
-
-        if cond is not None:
-            cond = self.cond_embed(cond)
 
         # input half of the U-Net
         for module in self.down:
@@ -220,10 +216,7 @@ class SequentialBlock(nn.Sequential):
     `nn.Conv` and `SpatialTransformer` and calls them with the matching signatures
     """
 
-    def forward(self,
-                x: Tensor,
-                t_emb: Tensor = None,
-                cond: Tensor = None):
+    def forward(self, x: Tensor, t_emb: Tensor = None, cond: Tensor = None):
         for layer in self:
             if isinstance(layer, get_all_blocks()):
                 x = layer(x, t_emb)
@@ -250,7 +243,7 @@ if __name__ == "__main__":
         # print(cfg)
 
         cfg = cfg['denoise_net']
-        unet : UNet = hydra.utils.instantiate(cfg)
+        unet: UNet = hydra.utils.instantiate(cfg)
         x = torch.randn(2, 1, 32, 32)
         t = torch.randint(0, 1000, (2, ))
         out1 = unet(x, t)
@@ -260,11 +253,13 @@ if __name__ == "__main__":
 
         print('-' * 60)
 
-        cfg.n_classes = 2 
+        cfg.n_classes = 2
+        cfg.attention = 'CrossAttention'
         cond = torch.randint(0, 2, (2, ))
-        cond_unet : UNet = hydra.utils.instantiate(cfg)
+        cond_unet: UNet = hydra.utils.instantiate(cfg)
         out2 = cond_unet(x, t, cond=cond)
         print('***** Condition_UNet *****')
         print('Input:', x.shape)
         print('Output:', out2.shape)
+
     main()

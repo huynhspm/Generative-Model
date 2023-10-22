@@ -1,15 +1,14 @@
 _target_: src.models.diffusion.net.LatentDiffusionModel
 
-n_steps: 1000 # the number of diffusion step
+n_train_steps: 1000 # the number of diffusion step
 img_dims:
   - 32
   - 8
   - 8
-schedule_noise: linear
 denoise_net:
   _target_: src.models.unet.UNet
 
-  img_channels: 32 # the channel count of the image
+  img_channels: ${model.net.img_dims[0]} # the channel count of the image
   channels: 64 # the base channel count for the model
   block: Residual # name of blocks for each level
   n_layer_blocks: 1 # number of blocks at each level
@@ -18,7 +17,11 @@ denoise_net:
   attention_levels: [1, 2] # the levels at which attention should be performed
   n_attention_heads: 4 # the number of attention heads
   n_attention_layers: 1 # the number of attention layers
-  n_classes: null # the number class
+  d_cond: null # the number of dimension of condition
   drop_rate: 0 # drop out layer
 
 autoencoder_weight_path: null
+
+sampler:
+  _target_: src.models.diffusion.sampler.DDIMSampler
+  n_train_steps: ${model.net.n_train_steps}

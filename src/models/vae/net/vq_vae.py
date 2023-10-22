@@ -104,7 +104,7 @@ class VQVAE(BaseVAE):
                 nn.Sequential(
                     nn.Conv2d(in_channels, out_channels=h_dim,
                               kernel_size=4, stride=2, padding=1),
-                    nn.LeakyReLU())
+                    nn.LeakyReLU(inplace=True))
             )
             in_channels = h_dim
 
@@ -112,18 +112,18 @@ class VQVAE(BaseVAE):
             nn.Sequential(
                 nn.Conv2d(in_channels, in_channels,
                           kernel_size=3, stride=1, padding=1),
-                nn.LeakyReLU())
+                nn.LeakyReLU(inplace=True))
         )
 
         for _ in range(6):
             modules.append(ResidualLayer(in_channels, in_channels))
-        modules.append(nn.LeakyReLU())
+        modules.append(nn.LeakyReLU(inplace=True))
 
         modules.append(
             nn.Sequential(
                 nn.Conv2d(in_channels, z_channels,
                           kernel_size=1, stride=1),
-                nn.LeakyReLU())
+                nn.LeakyReLU(inplace=True))
         )
 
         self.encoder = nn.Sequential(*modules)
@@ -141,13 +141,13 @@ class VQVAE(BaseVAE):
                           kernel_size=3,
                           stride=1,
                           padding=1),
-                nn.LeakyReLU())
+                nn.LeakyReLU(inplace=True))
         )
 
         for _ in range(6):
             modules.append(ResidualLayer(hidden_dims[-1], hidden_dims[-1]))
 
-        modules.append(nn.LeakyReLU())
+        modules.append(nn.LeakyReLU(inplace=True))
 
         hidden_dims.reverse()
 
@@ -159,7 +159,7 @@ class VQVAE(BaseVAE):
                                        kernel_size=4,
                                        stride=2,
                                        padding=1),
-                    nn.LeakyReLU())
+                    nn.LeakyReLU(inplace=True))
             )
 
         modules.append(

@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=example
+# python train.py experiment=diffusion_cifar10
 
 defaults:
   - override /data: cifar10.yaml
@@ -20,6 +20,7 @@ task_name: "train_diffusion"
 trainer:
   max_epochs: 2000
   devices: 1
+  check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
 
 data:
@@ -31,6 +32,7 @@ model:
     denoise_net:
       img_channels: 3
       n_layer_blocks: 2
+      channel_multipliers: [1, 2, 4, 4]
 
 logger:
   wandb:
@@ -40,7 +42,6 @@ logger:
     group: ${data.dataset_name}
 
 callbacks:
-  early_stopping: null
   gen_sample:
     grid_shape: [5, 10]
     metrics: []

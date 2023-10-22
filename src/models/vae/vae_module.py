@@ -223,7 +223,7 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="vae_module.yaml")
     def main(cfg: DictConfig):
-        cfg.net.kld_weight=[0, 1]
+        # cfg.net.kld_weight=[0, 1]
         # print(cfg)
 
         vae_module: VAEModule = hydra.utils.instantiate(cfg)

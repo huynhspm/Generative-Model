@@ -16,25 +16,27 @@ from src.data.dataset import init_dataset
 
 class TransformDataset(Dataset):
 
-    def __init__(self, dataset: Dataset, transform: Optional[Compose] = None):
+    def __init__(self,
+                 dataset: Dataset,
+                 transform: Optional[Compose] = None,
+                 transform_condition: bool = False):
         self.dataset = dataset
-        if transform is not None:
-            self.transform = transform
-        else:
-            self.transform = Compose([
-                A.Resize(64, 64),
-                A.Normalize(mean=[0.5], std=[0.5]),
-                ToTensorV2(),
-            ])
+        self.transform_condition = transform_condition
+
+        assert transform is not None, ('transform is None')
+        self.transform = transform
 
     def __len__(self):
         return len(self.dataset)
 
     def __getitem__(self, idx):
-        image, label = self.dataset[idx]
-        transformed = self.transform(image=np.array(image))
-        image = transformed["image"]
-        return image, label
+        image, cond = self.dataset[idx]
+        if self.transform_condition:
+            transformed = self.transform(image=image, cond=cond)
+            image, cond = transformed["image"], transformed["cond"]
+        else:
+            image = self.transform(image=np.array(image))["image"]
+        return image, cond
 
 
 class DiffusionDataModule(pl.LightningDataModule):
@@ -67,7 +69,8 @@ class DiffusionDataModule(pl.LightningDataModule):
     def __init__(
         self,
         data_dir: str = "./data",
-        train_val_test_split: Tuple[int, int, int] = (55_000, 5_000, 10_000),
+        train_val_test_split: Tuple[float, float, float]
+        | Tuple[int, int, int] = (0.8, 0.1, 0.1),
         transform_train: Optional[Compose] = None,
         transform_val: Optional[Compose] = None,
         batch_size: int = 64,
@@ -75,15 +78,19 @@ class DiffusionDataModule(pl.LightningDataModule):
         pin_memory: bool = False,
         dataset_name: str = 'mnist',
         n_classes: str = 10,
+        transform_condition: bool = False,
     ):
         """
         data_dir: 
-        augmentation: 
+        train_val_test_split: 
+        transform_train:
+        transform_val:
         batch_size:
         num_workers:
         pin_memory:
-        img_dims:
-        augmentation:
+        dataset_name:
+        n_classes:
+        transform_condition:
         """
         super().__init__()
 
@@ -117,19 +124,27 @@ class DiffusionDataModule(pl.LightningDataModule):
             dataset = init_dataset(self.hparams.dataset_name,
                                    data_dir=self.hparams.data_dir)
 
+            print('Dataset:', len(dataset))
             self.data_train, self.data_val, self.data_test = random_split(
                 dataset=dataset,
                 lengths=self.hparams.train_val_test_split,
                 generator=torch.Generator().manual_seed(42),
             )
 
+            print('Train-Val-Test:', len(self.data_train), len(self.data_val),
+                  len(self.data_test))
             self.data_train = TransformDataset(
                 dataset=self.data_train,
-                transform=self.hparams.transform_train)
+                transform=self.hparams.transform_train,
+                transform_condition=self.hparams.transform_condition)
             self.data_val = TransformDataset(
-                dataset=self.data_val, transform=self.hparams.transform_val)
+                dataset=self.data_val,
+                transform=self.hparams.transform_val,
+                transform_condition=self.hparams.transform_condition)
             self.data_test = TransformDataset(
-                dataset=self.data_test, transform=self.hparams.transform_val)
+                dataset=self.data_test,
+                transform=self.hparams.transform_val,
+                transform_condition=self.hparams.transform_condition)
 
     def train_dataloader(self):
         return DataLoader(
@@ -182,57 +197,52 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="default.yaml")
+                config_name="cvc_clinic.yaml")
     def main(cfg: DictConfig):
         print(cfg)
-        show_images(cfg)
-        # compute_mean_std(cfg)
-    
-    def show_images(cfg: DictConfig):
-        datamodule: DiffusionDataModule = hydra.utils.instantiate(cfg, data_dir=f"{root}/data")
+
+        datamodule: DiffusionDataModule = hydra.utils.instantiate(
+            cfg, data_dir=f"{root}/data")
         datamodule.setup()
+
         train_dataloader = datamodule.train_dataloader()
-        print(len(train_dataloader))
+        print('train_dataloader:', len(train_dataloader))
+
+        batch_image = next(iter(train_dataloader))
+        images, conds = batch_image
+
+        print(images.shape, conds.shape)
 
         import matplotlib.pyplot as plt
-        from torchvision.utils import make_grid 
-    
-        batch_image = next(iter(train_dataloader))
-        images, labels = batch_image
-        print(images.shape, labels.shape)
+        from torchvision.utils import make_grid
 
-        mean = torch.Tensor(cfg.transform_train.transforms[-2].mean).reshape(1, -1, 1, 1)
-        std = torch.Tensor(cfg.transform_train.transforms[-2].std).reshape(1, -1, 1, 1)
-        images = ((images * std + mean) * 255).type(torch.uint8)
-        image = make_grid(images[:100], nrow=10)
+        mean = 0.5
+        std = 0.5
+        images = ((images * std + mean))
+        image = make_grid(images[:25], nrow=5)
 
-        plt.imshow(image.moveaxis(0, 2), cmap='gray')
-        plt.show()
+        from torchvision.utils import save_image
 
-    def compute_mean_std(cfg: DictConfig):
-        dataset = init_dataset(cfg.dataset_name, data_dir=f"{root}/data")
-        dataset = TransformDataset(dataset=dataset)
-        
-        print(len(dataset))
-        dataloader = DataLoader(dataset=dataset,
-                                batch_size=cfg.batch_size,
-                                num_workers=cfg.num_workers,
-                                pin_memory=cfg.pin_memory,
-                                shuffle=False,)
-        batch_image = next(iter(dataloader))
-        images, labels = batch_image
-        print(images.shape, len(labels))
-        
-        mean = 0.
-        std = 0.
-        for images, _ in dataloader:
-            batch_samples = images.size(0) # batch size (the last batch can have smaller size!)
-            images = images.view(batch_samples, images.size(1), -1)
-            mean += images.mean(2).sum(0)
-            std += images.std(2).sum(0)
+        if len(conds.shape) < 3:
+            print(conds[0:25])
+            print(image.shape)
+            plt.imshow(image.moveaxis(0, 2))
+            plt.show()
+        else:
+            conds = ((conds * std + mean))
+            cond = make_grid(conds[:25], nrow=5)
+            print(image.shape, cond.shape)
 
-        mean /= len(dataset)
-        std /= len(dataset)
-        print(mean, std)
+            save_image(image, 'image.jpg')
+            save_image(cond, 'cond.jpg')
+
+            plt.figure(figsize=(16, 8))
+            plt.subplot(1, 2, 1)
+            plt.imshow(image.moveaxis(0, 2))
+            plt.title('Image')
+            plt.subplot(1, 2, 2)
+            plt.imshow(cond.moveaxis(0, 2))
+            plt.title('Condition')
+            plt.show()
 
     main()

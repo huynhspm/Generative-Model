@@ -1,0 +1,15 @@
+_target_: src.data.DiffusionDataModule
+
+defaults:
+  - transform_train: isic.yaml
+  - transform_val: isic.yaml
+  - _self_
+
+data_dir: ${paths.data_dir}
+train_val_test_split: [1229, 30, 20]
+batch_size: 128
+num_workers: 0
+pin_memory: True
+dataset_name: isic
+n_classes: -1
+transform_condition: true

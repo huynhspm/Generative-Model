@@ -1,0 +1,44 @@
+_target_: src.models.diffusion.ConditionDiffusionModule
+
+use_ema: true
+
+optimizer:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 0.0002
+  weight_decay: 0.0
+
+scheduler:
+  _target_: src.utils.lr_scheduler.LambdaWarmUpScheduler3
+  warm_up_steps: 5000
+
+net:
+  _target_: src.models.diffusion.net.StableDiffusionModel
+
+  n_steps: 1000 # the number of diffusion step
+  img_dims:
+    - 32
+    - 8
+    - 8
+  schedule_noise: linear
+  denoise_net:
+    _target_: src.models.unet.UNet
+
+    img_channels: ${model.net.img_dims[0]} # the channel count of the image
+    channels: 64 # the base channel count for the model
+    block: Residual # name of blocks for each level
+    n_layer_blocks: 1 # number of blocks at each level
+    channel_multipliers: [1, 2, 4] # the multiplicative factors for number of channels for each level
+    attention: CrossAttention # name of attentions for each level
+    attention_levels: [1, 2] # the levels at which attention should be performed
+    n_attention_heads: 4 # the number of attention heads
+    n_attention_layers: 1 # the number of attention layers
+    d_cond: ${model.net.cond_net.d_cond} # the number of dimension of condition
+    drop_rate: 0 # drop out layer
+
+  autoencoder_weight_path: null
+
+  cond_net:
+    _target_: src.models.components.embeds.LabelEmbedding
+    n_classes: ${data.n_classes}
+    d_cond: 256

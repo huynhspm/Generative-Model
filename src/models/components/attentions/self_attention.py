@@ -39,6 +39,8 @@ class SAWrapper(nn.Module):
         x = x.view(batch_size, channels, -1).swapaxes(1, 2)
         x = self.sa(x)
         x = x.swapaxes(2, 1).view(batch_size, channels, size, size)
+        # because: Warning: Grad strides do not match bucket view strides
+        x = x.contiguous()
         return x
 
 

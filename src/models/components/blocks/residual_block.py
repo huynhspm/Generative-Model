@@ -1,7 +1,6 @@
-from typing import Optional
-
 import torch
 import torch.nn as nn
+from torch import Tensor
 
 
 class ResidualBlock(nn.Module):
@@ -11,9 +10,9 @@ class ResidualBlock(nn.Module):
 
     def __init__(self,
                  in_channels: int,
-                 out_channels: Optional[int] = None,
+                 out_channels: int | None = None,
                  drop_rate: float = 0.,
-                 d_t_emb: Optional[int] = None):
+                 d_t_emb: int | None = None):
         """
         in_channels: number of input channels
         out_channels: number of out channels. defaults to `in_channels.
@@ -36,7 +35,7 @@ class ResidualBlock(nn.Module):
         # Normalization and convolution in input layer
         self.in_layers = nn.Sequential(
             nn.GroupNorm(num_groups=32, num_channels=in_channels),
-            nn.SiLU(),
+            nn.SiLU(inplace=True),
             nn.Conv2d(in_channels=in_channels,
                       out_channels=out_channels,
                       kernel_size=3,
@@ -46,7 +45,7 @@ class ResidualBlock(nn.Module):
         # Normalization and convolution in output layers
         self.out_layers = nn.Sequential(
             nn.GroupNorm(num_groups=32, num_channels=out_channels),
-            nn.SiLU(),
+            nn.SiLU(inplace=True),
             nn.Dropout(p=drop_rate),
             nn.Conv2d(in_channels=out_channels,
                       out_channels=out_channels,
@@ -62,9 +61,7 @@ class ResidualBlock(nn.Module):
                                              out_channels=out_channels,
                                              kernel_size=1)
 
-    def forward(self,
-                x: torch.Tensor,
-                t_emb: Optional[torch.Tensor] = None) -> torch.Tensor:
+    def forward(self, x: Tensor, t_emb: Tensor = None) -> Tensor:
         """
         x: is the input feature map with shape `[batch_size, channels, height, width]`
         t_emb: is the time step embeddings of shape `[batch_size, d_t_emb]`. defaults to None

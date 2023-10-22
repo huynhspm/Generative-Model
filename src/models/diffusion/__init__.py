@@ -1,3 +1,2 @@
 from .diffusion_module import DiffusionModule
 from .condition_diffusion_module import ConditionDiffusionModule
-# from .latent_diffusion_module import LatentDiffusionModule

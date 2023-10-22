@@ -1,17 +1,16 @@
-from typing import Optional
-
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from torch import Tensor
 
 
 class BaseBlock(nn.Module):
 
     def __init__(self,
                  in_channels: int,
-                 out_channels: Optional[int] = None,
+                 out_channels: int = None,
                  drop_rate: float = 0.,
-                 d_t_emb: Optional[int] = None,
+                 d_t_emb: int = None,
                  residual: bool = False) -> None:
         """
         in_channels: the number of input channels
@@ -40,7 +39,7 @@ class BaseBlock(nn.Module):
                       padding=1,
                       bias=False),
             nn.GroupNorm(num_groups=32, num_channels=out_channels),
-            nn.SiLU(),
+            nn.SiLU(inplace=True),
             nn.Dropout(p=drop_rate),
             nn.Conv2d(in_channels=out_channels,
                       out_channels=out_channels,
@@ -51,8 +50,8 @@ class BaseBlock(nn.Module):
         )
 
     def forward(self,
-                x: torch.Tensor,
-                t_emb: Optional[torch.Tensor] = None) -> torch.Tensor:
+                x: Tensor,
+                t_emb: Tensor = None) -> Tensor:
         """
         x: is the input feature map with shape `[batch_size, channels, height, width]`
         t_emb: is the time step embeddings of shape `[batch_size, d_t_emb]`. defaults to None
@@ -83,7 +82,7 @@ if __name__ == "__main__":
     print('***** BaseBlock_with_TimeEmbedding *****')
     print('Input:', x.shape, t.shape)
     print('Output:', out1.shape)
-    
+
     print('-' * 60)
 
     baseBlock = BaseBlock(

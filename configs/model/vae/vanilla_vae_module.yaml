@@ -5,7 +5,7 @@ use_ema: true
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 0.001
+  lr: 0.005
   weight_decay: 0.0
 
 scheduler:

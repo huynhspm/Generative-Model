@@ -1,13 +1,13 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=example
+# python train.py experiment=latent_diffusion_dogcat
 
 defaults:
   - override /data: dogcat.yaml
   - override /model: diffusion/latent_diffusion_module.yaml
   - override /callbacks: diffusion.yaml
-  - override /trainer: gpu.yaml
+  - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
 # all parameters below will be merged with parameters from default configurations set above
@@ -20,21 +20,26 @@ task_name: "train_diffusion"
 trainer:
   max_epochs: 2000
   devices: 1
+  check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 512
+  batch_size: 64
   num_workers: 20
 
 model:
+  optimizer:
+    lr: 2.0e-05
   net:
     img_dims:
+      - 3
       - 32
-      - 16
-      - 16
+      - 32
     denoise_net:
-      img_channels: 32
-    autoencoder_weight_path: logs/train_vae/runs/2023-08-31_17-49-59/checkpoints/last.ckpt
+      channels: 128
+      n_layer_blocks: 2
+      channel_multipliers: [1, 2, 4, 4]
+    autoencoder_weight_path: null
 
 logger:
   wandb:
@@ -44,7 +49,6 @@ logger:
     group: ${data.dataset_name}
 
 callbacks:
-early_stopping: null
   gen_sample:
-    grid_shape: [5, 10]
+    grid_shape: [5, 5]
     metrics: []

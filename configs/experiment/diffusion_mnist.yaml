@@ -1,13 +1,13 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=example
+# python train.py experiment=diffusion_mnist
 
 defaults:
-  - override /data: celeba.yaml
-  - override /model: diffusion/latent_diffusion_module.yaml
+  - override /data: mnist.yaml
+  - override /model: diffusion/diffusion_module.yaml
   - override /callbacks: diffusion.yaml
-  - override /trainer: gpu.yaml
+  - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
 # all parameters below will be merged with parameters from default configurations set above
@@ -18,25 +18,23 @@ seed: 12345
 task_name: "train_diffusion"
 
 trainer:
-  max_epochs: 2000
+  max_epochs: 100
   devices: 1
+  check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 128
+  batch_size: 256
   num_workers: 20
 
 model:
+  scheduler:
+    warm_up_steps: 100
   net:
-    img_dims:
-      - 32
-      - 32
-      - 32
     denoise_net:
-      img_channels: 32
+      img_channels: 1
       n_layer_blocks: 2
-      channel_multipliers: [1, 2, 4]
-    autoencoder_weight_path: logs/train_vae/runs/2023-09-02_18-46-48/checkpoints/last.ckpt
+      channel_multipliers: [1, 2, 4, 4]
 
 logger:
   wandb:
@@ -46,7 +44,6 @@ logger:
     group: ${data.dataset_name}
 
 callbacks:
-  early_stopping: null
   gen_sample:
     grid_shape: [5, 10]
     metrics: []

@@ -1,2 +1,4 @@
 from .diffusion_model import DiffusionModel
 from .latent_diffusion_model import LatentDiffusionModel
+from .condition_diffusion_model import ConditionDiffusionModel
+from .stable_diffusion_model import StableDiffusionModel

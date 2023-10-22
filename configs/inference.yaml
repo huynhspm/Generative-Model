@@ -1,20 +1,13 @@
 defaults:
   - data: cifar10.yaml
-  - model: diffusion_module.yaml
   - paths: default.yaml
-  - extras: default.yaml
-  - trainer: default
-  - callbacks: default
   - hydra: default.yaml
-  - logger: null
-  - experiment: diffusion_cifar10
   - _self_
 
 task_name: inference
 device: cuda
 checkpoint: last
 gen_type: ddim
-gen_shape: [10, 10]
 checkpoint_dir: "${paths.log_dir}/train_diffusion/runs/2023-08-12_13-58-19/checkpoints/"
 mean: ${data.transform_val.transforms[1].mean}
 std: ${data.transform_val.transforms[1].std}

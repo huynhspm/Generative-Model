@@ -1,13 +1,13 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=example
+# python train.py experiment=condition_diffusion_sketch_coco
 
 defaults:
-  - override /data: cifar10.yaml
-  - override /model: diffusion/latent_diffusion_module.yaml
+  - override /data: sketch_coco.yaml
+  - override /model: diffusion/condition_diffusion_module.yaml
   - override /callbacks: diffusion.yaml
-  - override /trainer: gpu.yaml
+  - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
 # all parameters below will be merged with parameters from default configurations set above
@@ -20,22 +20,24 @@ task_name: "train_diffusion"
 trainer:
   max_epochs: 2000
   devices: 1
+  check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 512
+  batch_size: 8
   num_workers: 20
 
 model:
   net:
-    img_dims:
-      - 32
-      - 8
-      - 8
     denoise_net:
-      img_channels: 32
-      n_layer_blocks: 2
-    autoencoder_weight_path: logs/train_autoencoder/runs/2023-08-26_18-05-45/checkpoints/last.ckpt
+      img_channels: 3
+      n_layer_blocks: 1
+      channels: 64
+      channel_multipliers: [1, 2, 4, 4]
+    cond_net:
+      _target_: src.models.components.embeds.SketchEmbedding
+      in_channels: 3
+      d_cond: 256
 
 logger:
   wandb:
@@ -45,7 +47,6 @@ logger:
     group: ${data.dataset_name}
 
 callbacks:
-  early_stopping: null
   gen_sample:
-    grid_shape: [5, 10]
+    grid_shape: [4, 4]
     metrics: []

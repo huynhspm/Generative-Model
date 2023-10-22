@@ -9,7 +9,6 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 from src.models.diffusion import DiffusionModule
 from src.models.diffusion.net import DiffusionModel
 
-
 class ConditionDiffusionModule(DiffusionModule):
 
     def __init__(
@@ -22,8 +21,8 @@ class ConditionDiffusionModule(DiffusionModule):
         super().__init__(net, optimizer, scheduler, use_ema)
 
     def model_step(self, batch: Any):
-        batch, label = batch
-        preds, targets = self.forward(batch, cond=label)
+        batch, cond = batch
+        preds, targets = self.forward(batch, cond=cond)
         loss = self.criterion(preds, targets)
         return loss, preds, targets
 

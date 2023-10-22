@@ -1,0 +1,14 @@
+_target_: src.data.DiffusionDataModule
+
+defaults:
+  - transform_train: ffhq.yaml
+  - transform_val: ffhq.yaml
+  - _self_
+
+data_dir: ${paths.data_dir}
+train_val_test_split: [60_000, 5_000, 5_000]
+batch_size: 128
+num_workers: 0
+pin_memory: True
+dataset_name: ffhq
+n_classes: -1
