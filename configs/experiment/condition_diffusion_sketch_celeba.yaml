@@ -48,5 +48,6 @@ logger:
 
 callbacks:
   gen_sample:
-    grid_shape: [4, 4]
-    metrics: []
+    grid_shape: [5, 5]
+  metrics:
+    IS: null

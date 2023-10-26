@@ -1,14 +1,14 @@
 _target_: src.data.DiffusionDataModule
 
 defaults:
-  - transform_train: dogcat.yaml
-  - transform_val: dogcat.yaml
+  - transform_train: afhq.yaml
+  - transform_val: afhq.yaml
   - _self_
 
 data_dir: ${paths.data_dir}
-train_val_test_split: [20_158, 2_500, 2_500]
+train_val_test_split: [0.8, 0.1, 0.1]
 batch_size: 128
 num_workers: 0
 pin_memory: True
-dataset_name: dogcat
+dataset_name: afhq
 n_classes: 3

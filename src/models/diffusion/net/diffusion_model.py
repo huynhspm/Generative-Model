@@ -88,6 +88,7 @@ class DiffusionModel(nn.Module):
                sample_steps: Tensor | None = None,
                cond: Tensor | None = None,
                num_sample: int | None = 1,
+               noise: Tensor | None = None,
                repeat_noise: bool = False,
                device: torch.device = torch.device('cpu'),
                prog_bar: bool = False) -> List[Tensor]:
@@ -114,12 +115,13 @@ class DiffusionModel(nn.Module):
             desc="Sampling t") if prog_bar else self.sampler.timesteps
 
         for i, t in enumerate(sample_steps):
-            t = torch.full((num_sample, ), t, device=device, dtype=torch.int64)
+            t = torch.full((xt.shape[0], ),
+                           t,
+                           device=device,
+                           dtype=torch.int64)
             model_output = self.denoise_net(x=xt, time_steps=t, cond=cond)
-            xt = self.sampler.reverse_step(model_output,
-                                           t,
-                                           xt,
-                                           repeat_noise=repeat_noise)
+            xt = self.sampler.reverse_step(model_output, t, xt, noise,
+                                           repeat_noise)
 
             if i % self.gif_frequency == 0 or i + 1 == len(
                     self.sampler.timesteps):

@@ -1,9 +1,5 @@
 gen_sample:
   _target_: src.utils.callbacks.GenSample
   grid_shape: [10, 10]
-  gen_type: ddim
   mean: ${data.transform_val.transforms[1].mean}
   std: ${data.transform_val.transforms[1].std}
-  metrics: []
-  range: 2.0
-  feature: 64

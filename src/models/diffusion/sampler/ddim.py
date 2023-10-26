@@ -39,8 +39,12 @@ class DDIMSampler(BaseSampler):
                          beta_start, beta_end, given_betas, variance_type,
                          clip_denoised, set_final_alpha_to_one)
 
-    def reverse_step(self, model_output: Tensor, t: Tensor,
-                     xt: Tensor) -> Tensor:
+    def reverse_step(self,
+                     model_output: Tensor,
+                     t: Tensor,
+                     xt: Tensor,
+                     noise: Tensor | None = None,
+                     repeat_noise: bool = False) -> Tensor:
 
         # ddpm so: t_prev != t - 1
         t_prev = t - self.n_train_steps // self.n_infer_steps

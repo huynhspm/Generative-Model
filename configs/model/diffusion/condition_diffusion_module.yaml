@@ -15,12 +15,11 @@ scheduler:
 net:
   _target_: src.models.diffusion.net.ConditionDiffusionModel
 
-  n_steps: 1000 # the number of diffusion step
+  n_train_steps: 1000 # the number of diffusion step
   img_dims:
     - ${model.net.denoise_net.img_channels}
     - ${data.transform_val.transforms[0].height}
     - ${data.transform_val.transforms[0].width}
-  schedule_noise: linear
   denoise_net:
     _target_: src.models.unet.UNet
 
@@ -39,9 +38,13 @@ net:
   # cond_net:
   #   _target_: src.models.components.embeds.LabelEmbedding
   #   n_classes: ${data.n_classes}
-    d_cond: 256
+  #   d_cond: 256
 
   cond_net:
     _target_: src.models.components.embeds.SketchEmbedding
     in_channels: 3
     d_cond: 256
+
+  sampler:
+    _target_: src.models.diffusion.sampler.DDIMSampler
+    n_train_steps: ${model.net.n_train_steps}

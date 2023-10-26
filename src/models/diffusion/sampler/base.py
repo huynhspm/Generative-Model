@@ -190,6 +190,15 @@ class BaseSampler(nn.Module):
         if self.clip_denoised:
             x0_pred.clamp_(-1.0, 1.0)
 
+        if noise is None:
+            if repeat_noise:
+                noise = torch.randn(1, xt.shape[1:], device=xt.device)
+            else:
+                noise = torch.randn_like(xt)
+        else:
+            assert noise.shape == xt.shape, 'shape not match'
+            noise = noise.to(xt.device)
+
         variance = torch.zeros_like(model_output)
         # if t = 0 (the last step reverse) -> not add noise
         ids = t > 0

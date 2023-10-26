@@ -8,25 +8,16 @@ class MnistDataset(Dataset):
 
     dataset_dir = 'mnist'
 
-    def __init__(self,
-                 data_dir: str = 'data') -> None:
-        """
-            data_dir:
-        """
-
+    def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
 
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
         self.prepare_data()
 
     def prepare_data(self) -> None:
-        trainset = MNIST(self.dataset_dir,
-                         download=True,
-                         train=True)
+        trainset = MNIST(self.dataset_dir, download=True, train=True)
 
-        testset = MNIST(self.dataset_dir,
-                        download=True,
-                        train=False)
+        testset = MNIST(self.dataset_dir, download=True, train=False)
 
         self.dataset = ConcatDataset(datasets=[trainset, testset])
 
@@ -35,7 +26,8 @@ class MnistDataset(Dataset):
 
     def __getitem__(self, index) -> torch.Tensor:
         return self.dataset[index]
-    
+
+
 if __name__ == "__main__":
     dataset = MnistDataset(data_dir='data')
     print(len(dataset))

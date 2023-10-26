@@ -17,8 +17,6 @@ model_checkpoint:
 model_summary:
   max_depth: -1
 
-gen_sample:
-  grid_shape: [5, 10]
-  metrics:
-    - ssim
-    - psnr
+metrics:
+  fid: null
+  IS: null

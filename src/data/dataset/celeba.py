@@ -9,8 +9,7 @@ class CelebADataset(Dataset):
     dataset_dir = 'celeba'
     dataset_url = 'https://www.kaggle.com/datasets/badasstechie/celebahq-resized-256x256'
 
-    def __init__(self,
-                 data_dir: str = 'data') -> None:
+    def __init__(self, data_dir: str = 'data') -> None:
         """
             data_dir:
         """
@@ -20,8 +19,7 @@ class CelebADataset(Dataset):
         self.img_paths = glob.glob(f"{self.dataset_dir}/*.jpg")
 
     def prepare_data(self) -> None:
-        import opendatasets as od
-        od.download(self.dataset_url)
+        pass
 
     def __len__(self):
         return len(self.img_paths)
@@ -30,13 +28,14 @@ class CelebADataset(Dataset):
         img_path = self.img_paths[index]
         image = imageio.v2.imread(img_path)
         return image, -1
-    
+
+
 if __name__ == "__main__":
     dataset = CelebADataset(data_dir='data')
     print(len(dataset))
     image, label = dataset[0]
     print(image.shape, label)
-    
+
     import matplotlib.pyplot as plt
     plt.imshow(image)
     plt.show()

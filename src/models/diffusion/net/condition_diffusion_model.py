@@ -46,7 +46,8 @@ class ConditionDiffusionModel(DiffusionModel):
                 sample_steps: Tensor | None = None,
                 noise: Tensor | None = None,
                 cond: Tensor | None = None) -> Tuple[Tensor, Tensor]:
-        cond = self.get_condition_embedding(cond)
+        if self.cond_net is not None:
+            cond = self.get_condition_embedding(cond)
         return super().forward(x0, sample_steps, noise, cond)
 
     @torch.no_grad()
@@ -55,11 +56,13 @@ class ConditionDiffusionModel(DiffusionModel):
                sample_steps: Tensor | None = None,
                cond: Tensor | None = None,
                num_sample: int | None = 1,
+               noise: Tensor | None = None,
                repeat_noise: bool = False,
                device: torch.device = torch.device('cpu'),
                prog_bar: bool = False) -> List[Tensor]:
-        cond = self.get_condition_embedding(cond) if cond is not None else None
-        return super().sample(xt, sample_steps, cond, num_sample, repeat_noise,
+        if self.cond_net is not None:
+            cond = self.get_condition_embedding(cond)
+        return super().sample(xt, sample_steps, cond, num_sample, noise, repeat_noise,
                               device, prog_bar)
 
 

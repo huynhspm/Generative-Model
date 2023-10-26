@@ -36,4 +36,5 @@ net:
     drop_rate: 0 # percentage of dropout
 
   sampler:
-    _target_: src.models.diffusion.sampler.DDPMSampler
+    _target_: src.models.diffusion.sampler.DDIMSampler
+    n_train_steps: ${model.net.n_train_steps}

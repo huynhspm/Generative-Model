@@ -8,11 +8,8 @@ class ISICDataset(Dataset):
 
     dataset_dir = 'isic'
     dataset_url = 'https://challenge.isic-archive.com/data/'
-    def __init__(self,
-                 data_dir: str = 'data') -> None:
-        """
-            data_dir:
-        """
+
+    def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
 
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
@@ -24,8 +21,7 @@ class ISICDataset(Dataset):
         self.img_paths = glob.glob(img_dir[0]) + glob.glob(img_dir[1])
 
     def prepare_data(self) -> None:
-        import opendatasets as od
-        od.download(self.dataset_url)
+        pass
 
     def __len__(self):
         return len(self.img_paths)
@@ -37,7 +33,8 @@ class ISICDataset(Dataset):
         mask = imageio.v2.imread(mask_path)
 
         return image, mask
-    
+
+
 if __name__ == "__main__":
     dataset = ISICDataset(data_dir='data')
     print(len(dataset))

@@ -1,9 +1,7 @@
-from typing import Tuple
 import torch
 import glob
 import imageio
 import os.path as osp
-from torchvision.transforms import Compose
 from torch.utils.data import Dataset
 
 
@@ -12,16 +10,9 @@ class ImageNetDataset(Dataset):
     dataset_dir = 'imagenet'
     dataset_url = ''
 
-    def __init__(self,
-                 data_dir: str = 'data',
-                 transforms: Compose = None) -> None:
-        """
-            data_dir:
-            transforms:
-        """
+    def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
 
-        self.transforms = transforms
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
         img_dir = [
             f"{self.dataset_dir}/test/images/*.JPEG",

@@ -36,6 +36,7 @@ class TransformDataset(Dataset):
             image, cond = transformed["image"], transformed["cond"]
         else:
             image = self.transform(image=np.array(image))["image"]
+
         return image, cond
 
 
@@ -197,7 +198,7 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="cvc_clinic.yaml")
+                config_name="sketch_celeba.yaml")
     def main(cfg: DictConfig):
         print(cfg)
 
@@ -211,7 +212,8 @@ if __name__ == "__main__":
         batch_image = next(iter(train_dataloader))
         images, conds = batch_image
 
-        print(images.shape, conds.shape)
+        print('Image shape:', images.shape)
+        print('Cond shape:', conds.shape)
 
         import matplotlib.pyplot as plt
         from torchvision.utils import make_grid

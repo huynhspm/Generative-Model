@@ -1,8 +1,8 @@
+from .afhq import AFHQDataset
 from .anime import AnimeDataset
 from .celeba import CelebADataset
 from .cifar10 import Cifar10Dataset
 from .cvc_clinic import CVCClinicDataset
-from .dogcat import DogCatDataset
 from .edge_coco import EdgeCOCODataset
 from .fashion import FashionDataset
 from .ffhq import FFHQDataset
@@ -14,11 +14,11 @@ from .sketch_celeba import SketchCelebADataset
 from .sketch_coco import SketchCOCODataset
 
 __datasets = {
+    'afhq': AFHQDataset,
     'anime': AnimeDataset,
     'celeba': CelebADataset,
     'cifar10': Cifar10Dataset,
     'cvc_clinic': CVCClinicDataset,
-    'dogcat': DogCatDataset,
     'edge_coco': EdgeCOCODataset,
     'fashion': FashionDataset,
     'ffhq': FFHQDataset,

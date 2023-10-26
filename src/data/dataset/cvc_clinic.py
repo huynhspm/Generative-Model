@@ -8,19 +8,15 @@ class CVCClinicDataset(Dataset):
 
     dataset_dir = 'cvc_clinic'
     dataset_url = 'https://www.kaggle.com/datasets/balraj98/cvcclinicdb'
-    def __init__(self,
-                 data_dir: str = 'data') -> None:
-        """
-            data_dir:
-        """
+
+    def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
 
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
         self.img_paths = glob.glob(f"{self.dataset_dir}/Original/*.png")
 
     def prepare_data(self) -> None:
-        import opendatasets as od
-        od.download(self.dataset_url)
+        pass
 
     def __len__(self):
         return len(self.img_paths)
@@ -31,10 +27,11 @@ class CVCClinicDataset(Dataset):
         mask_path[-2] = 'Ground_Truth'
         mask_path = '/'.join(mask_path)
         image = imageio.v2.imread(img_path)
-        mask = imageio.v2.imread(mask_path,  pilmode='L')
+        mask = imageio.v2.imread(mask_path, pilmode='L')
 
         return image, mask
-    
+
+
 if __name__ == "__main__":
     dataset = CVCClinicDataset(data_dir='data')
     print(len(dataset))

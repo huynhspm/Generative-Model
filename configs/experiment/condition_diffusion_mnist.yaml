@@ -44,6 +44,5 @@ logger:
     group: ${data.dataset_name}
 
 callbacks:
-  gen_sample:
-    grid_shape: [5, 10]
-    metrics: []
+  metrics:
+    IS: null

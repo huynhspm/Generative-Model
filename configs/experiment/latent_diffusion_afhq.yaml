@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=stable_diffusion_dogcat
+# python train.py experiment=latent_diffusion_afhq
 
 defaults:
-  - override /data: dogcat.yaml
-  - override /model: diffusion/stable_diffusion_module.yaml
+  - override /data: afhq.yaml
+  - override /model: diffusion/latent_diffusion_module.yaml
   - override /callbacks: diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -51,4 +51,5 @@ logger:
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
-    metrics: []
+  metrics:
+    IS: null

@@ -71,7 +71,7 @@ class StableDiffusionModel(ConditionDiffusionModel):
                 noise: Tensor | None = None,
                 cond: Tensor | None = None) -> Tuple[Tensor, Tensor]:
         z = self.autoencoder_encode(x0)
-        return super().sample(z, sample_steps, noise, cond)
+        return super().forward(z, sample_steps, noise, cond)
 
     @torch.no_grad()
     def sample(self,
@@ -79,10 +79,11 @@ class StableDiffusionModel(ConditionDiffusionModel):
                sample_steps: Tensor | None = None,
                cond: Tensor | None = None,
                num_sample: int = 1,
+               noise: Tensor | None = None,
                repeat_noise: bool = False,
                device: torch.device = torch.device('cpu'),
                prog_bar: bool = False) -> List[Tensor]:
-        z_samples = super().sample(xt, sample_steps, cond, num_sample,
+        z_samples = super().sample(xt, sample_steps, cond, num_sample, noise,
                                    repeat_noise, device, prog_bar)
         return [self.autoencoder_decode(z) for z in z_samples]
 

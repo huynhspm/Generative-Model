@@ -9,12 +9,7 @@ class GenderDataset(Dataset):
     dataset_dir = 'gender'
     dataset_url = 'https://www.kaggle.com/datasets/yasserhessein/gender-dataset'
 
-    def __init__(self,
-                 data_dir: str = 'data') -> None:
-        """
-            data_dir:
-            transforms:
-        """
+    def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
 
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
@@ -41,15 +36,16 @@ class GenderDataset(Dataset):
     def __getitem__(self, index):
         img_path = self.img_paths[index]
         image = imageio.v2.imread(img_path)
-        label =int(img_path.split('/')[-2] == 'Female')
+        label = int(img_path.split('/')[-2] == 'Female')
         return image, label
-    
+
+
 if __name__ == "__main__":
     dataset = GenderDataset(data_dir='data')
     print(len(dataset))
     image, label = dataset[0]
     print(image.shape, label)
-    
+
     import matplotlib.pyplot as plt
     plt.imshow(image)
     plt.show()

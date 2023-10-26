@@ -1,9 +1,11 @@
 _target_: albumentations.Compose
 transforms:
   - _target_: albumentations.Resize
-    height: 128
-    width: 128
+    height: 512
+    width: 512
     always_apply: true
+  - _target_: albumentations.HorizontalFlip
+    p: 0.5
   - _target_: albumentations.Normalize
     mean: 0.5
     std: 0.5
