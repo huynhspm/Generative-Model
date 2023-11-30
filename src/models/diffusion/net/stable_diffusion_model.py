@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import torch
 from torch import Tensor
@@ -19,27 +19,32 @@ class StableDiffusionModel(ConditionDiffusionModel):
 
     def __init__(
         self,
-        autoencoder_weight_path: str,
         denoise_net: UNet,
-        cond_net,
         sampler: BaseSampler,
+        autoencoder_weight_path: str,
+        image_embedder: torch.nn.Module = None,
+        text_embedder: torch.nn.Module = None,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
         gif_frequency: int = 20,
         latent_scaling_factor: float = 1.0,
     ) -> None:
-        """
-        autoencoder_weight_path
-        denoise_net: model to learn noise
-        cond_net:
-        sampler: sample image in diffusion 
-        n_train_steps: the number of  diffusion step for forward process
-        img_dims: resolution of image - [channels, width, height]
-        gif_frequency:
+        """_summary_
+
+        Args:
+            autoencoder_weight_path (str): _description_
+            denoise_net (UNet): model to learn noise
+            sampler (BaseSampler): mampler for process with image in diffusion
+            image_embedder (torch.nn.Module, optional): _description_. Defaults to None.
+            text_embedder (torch.nn.Module, optional): _description_. Defaults to None.
+            n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
+            img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
+            gif_frequency (int, optional): _description_. Defaults to 20.
+            latent_scaling_factor (float, optional): _description_. Defaults to 1.0.
         """
 
-        super().__init__(denoise_net, cond_net, sampler, n_train_steps,
-                         img_dims, gif_frequency)
+        super().__init__(denoise_net, image_embedder, text_embedder, sampler,
+                         n_train_steps, img_dims, gif_frequency)
         assert autoencoder_weight_path is not None, "autoencoder_weight_path must not be None"
         self.autoencoder_module: VAEModule = VAEModule.load_from_checkpoint(
             autoencoder_weight_path)
@@ -69,7 +74,20 @@ class StableDiffusionModel(ConditionDiffusionModel):
                 x0: Tensor,
                 sample_steps: Tensor | None = None,
                 noise: Tensor | None = None,
-                cond: Tensor | None = None) -> Tuple[Tensor, Tensor]:
+                cond: Dict[str, Tensor] = None) -> Tuple[Tensor, Tensor]:
+        """_summary_
+        ### forward diffusion process to create label for model training
+        Args:
+            x0 (Tensor): _description_
+            sample_steps (Tensor | None, optional): _description_. Defaults to None.
+            noise (Tensor | None, optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+
+        Returns:
+            Tuple[Tensor, Tensor]:
+                - pred: noise is predicted from xt by model
+                - target: noise is added to (x0 -> xt)
+        """
         z = self.autoencoder_encode(x0)
         return super().forward(z, sample_steps, noise, cond)
 
@@ -77,12 +95,28 @@ class StableDiffusionModel(ConditionDiffusionModel):
     def sample(self,
                xt: Tensor | None = None,
                sample_steps: Tensor | None = None,
-               cond: Tensor | None = None,
+               cond: Dict[str, Tensor] = None,
                num_sample: int = 1,
                noise: Tensor | None = None,
                repeat_noise: bool = False,
                device: torch.device = torch.device('cpu'),
                prog_bar: bool = False) -> List[Tensor]:
+        """_summary_
+        ### reverse diffusion process
+        Args:
+            xt (Tensor | None, optional): _description_. Defaults to None.
+            sample_steps (Tensor | None, optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+            num_sample (int | None, optional): _description_. Defaults to 1.
+            noise (Tensor | None, optional): _description_. Defaults to None.
+            repeat_noise (bool, optional): _description_. Defaults to False.
+            device (torch.device, optional): _description_. Defaults to torch.device('cpu').
+            prog_bar (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            List[Tensor]: _description_
+        """
+
         z_samples = super().sample(xt, sample_steps, cond, num_sample, noise,
                                    repeat_noise, device, prog_bar)
         return [self.autoencoder_decode(z) for z in z_samples]

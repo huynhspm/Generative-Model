@@ -33,6 +33,9 @@ model:
     channels: 128
     channel_multipliers: [1, 2]
     n_layer_blocks: 2
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
 
 logger:
   wandb:

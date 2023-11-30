@@ -1,4 +1,4 @@
-from typing import Literal, TypeAlias, Union
+from typing import Literal, TypeAlias, Union, List
 
 import math
 import torch
@@ -18,12 +18,19 @@ def expand_dim_like(x: Tensor, y: Tensor):
     return x
 
 
+def noise_like(shape: List[int], device: torch.device, repeat: bool = False):
+    repeat_noise = lambda: torch.randn((1, *shape[1:]), device=device).repeat(
+        shape[0], *((1, ) * (len(shape) - 1)))
+    noise = lambda: torch.randn(shape, device=device)
+    return repeat_noise() if repeat else noise()
+
+
 class BaseSampler(nn.Module):
 
     def __init__(self,
                  n_train_steps: int,
                  n_infer_steps: int,
-                 beta_schedule: BetaSchedule = 'linear',
+                 beta_schedule: BetaSchedule = 'base',
                  beta_start: float = 1e-4,
                  beta_end: float = 2e-2,
                  given_betas: Tensor | None = None,
@@ -192,7 +199,9 @@ class BaseSampler(nn.Module):
 
         if noise is None:
             if repeat_noise:
-                noise = torch.randn(1, xt.shape[1:], device=xt.device)
+                noise = noise_like(xt.shape,
+                                   device=xt.device,
+                                   repeat=repeat_noise)
             else:
                 noise = torch.randn_like(xt)
         else:

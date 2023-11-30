@@ -9,6 +9,10 @@ class EdgeCOCODataset(Dataset):
 
     dataset_dir = 'sketchy_coco'
     dataset_url = 'https://github.com/sysu-imsl/SketchyCOCO?fbclid=IwAR26d967nBV8h1G9ll9fvlTJzAaIW2WE98PF3AdnI0t8dRnWHpasJLKptok'
+    labels = [
+        '2', '3', '4', '5', '10', '11', '17', '18', '19', '20', '21', '22',
+        '24', '25'
+    ]
 
     def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
@@ -25,6 +29,7 @@ class EdgeCOCODataset(Dataset):
     def __getitem__(self, index):
         img_path = self.img_paths[index]
         name = img_path.split('/')
+        label = self.labels.index(name[-2])
         edge_path = osp.join(self.dataset_dir, 'Object/Edge', name[-3],
                              name[-2], name[-1])
 
@@ -32,14 +37,19 @@ class EdgeCOCODataset(Dataset):
         edge = imageio.v2.imread(edge_path)
         edge = cv2.GaussianBlur(edge, (3, 3), None)
         edge = cv2.erode(edge, kernel=(3, 3), iterations=1)
-        return image, edge
+
+        return image, {'label': label, 'image': edge}
 
 
 if __name__ == "__main__":
     dataset = EdgeCOCODataset(data_dir='data')
     print(len(dataset))
-    image, edge = dataset[0]
-    print(image.shape, edge.shape)
+    image, cond = dataset[0]
+    label, edge = cond['image']
+    print(image.shape, label, edge.shape)
+
+    import torch
+    print(torch.unique(torch.tensor(edge)))
 
     import matplotlib.pyplot as plt
     plt.subplot(1, 2, 1)

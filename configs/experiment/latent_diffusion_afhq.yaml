@@ -33,8 +33,8 @@ model:
   net:
     img_dims:
       - 3
-      - 32
-      - 32
+      - 64
+      - 64
     denoise_net:
       channels: 128
       n_layer_blocks: 2
@@ -47,6 +47,9 @@ logger:
     project: "diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
   gen_sample:

@@ -1,27 +1,16 @@
+defaults:
+  - diffusion_model
+  - image_embedder: null
+  - text_embedder: null
+
 _target_: src.models.diffusion.net.ConditionDiffusionModel
 
-n_steps: 1000 # the number of diffusion step
-img_dims:
-  - ${model.net.denoise_net.img_channels}
-  - ${data.transform_val.transforms[0].height}
-  - ${data.transform_val.transforms[0].width}
-schedule_noise: linear
 denoise_net:
-  _target_: src.models.unet.UNet
+  # cross-attention between vector condition embedding and image
+  # so use only embedder network is not None
+  # attention: CrossAttention # name of attentions for each level
 
-  img_channels: 1 # the channel count of the image
-  channels: 64 # the base channel count for the model
-  block: Residual # name of blocks for each level
-  n_layer_blocks: 1 # number of blocks at each level
-  channel_multipliers: [1, 2, 4] # the multiplicative factors for number of channels for each level
-  attention: CrossAttention # name of attentions for each level
-  attention_levels: [1, 2] # the levels at which attention should be performed
-  n_attention_heads: 4 # the number of attention heads
-  n_attention_layers: 1 # the number of attention layers
-  d_cond: ${model.net.cond_net.d_cond} # the number of dimension of condition
-  drop_rate: 0 # drop out layer
+  # n_classes: ${data.n_classes} # the number of classes (if use label condition)
 
-cond_net:
-  _target_: src.models.components.embeds.LabelEmbedding
-  n_classes: ${data.n_classes}
-  d_cond: 256
+  # d_cond_image: ${model.net.image_embedder.d_cond} # the number of dimension of image condition
+  # d_cond_text: ${model.net.text_embedder.d_cond} # the number of dimension of text condition

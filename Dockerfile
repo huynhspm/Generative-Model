@@ -10,7 +10,7 @@ COPY requirements_for_docker.txt .
 RUN pip install --no-cache-dir -r requirements_for_docker.txt
 
 # Copy the rest of the files
-COPY . .
+# COPY . .
 
 RUN git config --global --add safe.directory /workspace
 

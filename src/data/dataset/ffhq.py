@@ -24,14 +24,14 @@ class FFHQDataset(Dataset):
     def __getitem__(self, index):
         img_path = self.img_paths[index]
         image = imageio.v2.imread(img_path)
-        return image, -1
+        return image, {'label': -1}
 
 
 if __name__ == "__main__":
     dataset = FFHQDataset(data_dir='data')
     print(len(dataset))
-    image, label = dataset[0]
-    print(image.shape, label)
+    image, cond = dataset[0]
+    print(image.shape, cond)
 
     import matplotlib.pyplot as plt
     plt.imshow(image)

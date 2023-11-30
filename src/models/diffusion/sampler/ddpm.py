@@ -5,7 +5,7 @@ import torch.nn as nn
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.diffusion.sampler import BetaSchedule, VarianceType, BaseSampler, expand_dim_like
+from src.models.diffusion.sampler import BetaSchedule, VarianceType, BaseSampler, expand_dim_like, noise_like
 
 
 class DDPMSampler(BaseSampler):
@@ -13,7 +13,7 @@ class DDPMSampler(BaseSampler):
     def __init__(self,
                  n_train_steps: int = 1000,
                  n_infer_steps: int = 1000,
-                 beta_schedule: BetaSchedule = 'linear',
+                 beta_schedule: BetaSchedule = 'base',
                  beta_start: float = 1e-4,
                  beta_end: float = 2e-2,
                  given_betas: Tensor | None = None,
@@ -60,7 +60,9 @@ class DDPMSampler(BaseSampler):
                                                     xt)
         if noise is None:
             if repeat_noise:
-                noise = torch.randn(1, xt.shape[1:], device=xt.device)
+                noise = noise_like(xt.shape,
+                                   device=xt.device,
+                                   repeat=repeat_noise)
             else:
                 noise = torch.randn_like(xt)
         else:

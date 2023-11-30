@@ -32,14 +32,18 @@ class ISICDataset(Dataset):
         image = imageio.v2.imread(img_path)
         mask = imageio.v2.imread(mask_path)
 
-        return image, mask
+        return image, {'image': mask}
 
 
 if __name__ == "__main__":
     dataset = ISICDataset(data_dir='data')
     print(len(dataset))
-    image, mask = dataset[0]
+    image, cond = dataset[0]
+    mask = cond['image']
     print(image.shape, mask.shape)
+
+    import torch
+    print(torch.unique(torch.tensor(mask)))
 
     import matplotlib.pyplot as plt
     plt.subplot(1, 2, 1)

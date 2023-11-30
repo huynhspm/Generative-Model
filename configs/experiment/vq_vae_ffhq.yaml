@@ -23,12 +23,12 @@ trainer:
   check_val_every_n_epoch: 5
 
 data:
-  batch_size: 32
+  batch_size: 8
   num_workers: 20
 
 model:
   net:
-    # encode to 3x32x32
+    # encode to 3x64x64
     z_channels: 3
     channels: 64
 
@@ -38,6 +38,9 @@ logger:
     project: "vae"
     tags: ${tags}
     group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
   gen_sample:

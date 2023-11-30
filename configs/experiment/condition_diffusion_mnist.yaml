@@ -18,7 +18,7 @@ seed: 12345
 task_name: "train_diffusion"
 
 trainer:
-  max_epochs: 2000
+  max_epochs: 100
   devices: 1
   check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
@@ -42,6 +42,9 @@ logger:
     project: "diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
   metrics:

@@ -1,0 +1,7 @@
+defaults:
+  - base.yaml
+
+_target_: src.models.diffusion.sampler.DDIMSampler
+n_infer_steps: 50
+beta_schedule: linear
+variance_type: fixed_small

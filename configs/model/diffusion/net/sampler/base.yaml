@@ -1,0 +1,11 @@
+_target_: src.models.diffusion.sampler.BaseSampler
+
+n_train_steps: 1000
+n_infer_steps: 1000
+beta_schedule: base
+beta_start: 1e-4
+beta_end: 2e-2
+given_betas: null
+variance_type: fixed_small
+clip_denoised: True
+set_final_alpha_to_one: True

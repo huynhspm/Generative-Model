@@ -25,12 +25,13 @@ class MnistDataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index) -> torch.Tensor:
-        return self.dataset[index]
+        return self.dataset[index][0], {'label': self.dataset[index][1]}
 
 
 if __name__ == "__main__":
     dataset = MnistDataset(data_dir='data')
     print(len(dataset))
-    image, label = dataset[0]
-    print(image, label)
+    image, cond = dataset[0]
+    label = cond['label']
+    print(image.shape, label)
     image.show()

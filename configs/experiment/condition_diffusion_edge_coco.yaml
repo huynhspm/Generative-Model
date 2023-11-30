@@ -45,9 +45,13 @@ logger:
     project: "diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
+    log_cond: True
   metrics:
     IS: null

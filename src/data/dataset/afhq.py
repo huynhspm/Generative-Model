@@ -8,6 +8,7 @@ class AFHQDataset(Dataset):
 
     dataset_dir = 'afhq'
     dataset_url = 'https://www.kaggle.com/datasets/andrewmvd/animal-faces'
+    labels = ['dog', 'cat', 'wild']
 
     def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
@@ -35,16 +36,16 @@ class AFHQDataset(Dataset):
     def __getitem__(self, index):
         img_path = self.img_paths[index]
         image = imageio.v2.imread(img_path)
+        label = self.labels.index(img_path.split('/')[-2])
 
-        animal = img_path.split('/')[-2]
-        label = 0 if animal is 'dog' else 1 if animal is 'cat' else 2
-        return image, label
+        return image, {'label': label}
 
 
 if __name__ == "__main__":
     dataset = AFHQDataset(data_dir='data')
     print(len(dataset))
-    image, label = dataset[0]
+    image, cond = dataset[0]
+    label = cond['label']
     print(image.shape, label)
 
     import matplotlib.pyplot as plt

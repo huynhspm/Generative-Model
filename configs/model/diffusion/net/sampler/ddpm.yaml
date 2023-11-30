@@ -1,0 +1,6 @@
+defaults:
+  - base.yaml
+
+_target_: src.models.diffusion.sampler.DDPMSampler
+beta_schedule: linear
+variance_type: fixed_large

@@ -32,7 +32,6 @@ net:
     attention_levels: [1, 2] # the levels at which attention should be performed
     n_attention_heads: 4 # the number of attention heads
     n_attention_layers: 1 # the number of attention layers
-    d_cond: null # the number of dimension of condition
     drop_rate: 0 # drop out layer
 
   autoencoder_weight_path: null
@@ -40,3 +39,4 @@ net:
   sampler:
     _target_: src.models.diffusion.sampler.DDIMSampler
     n_train_steps: ${model.net.n_train_steps}
+    beta_schedule: linear

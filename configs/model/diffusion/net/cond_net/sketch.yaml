@@ -1,0 +1,4 @@
+_target_: src.models.components.embeds.SketchEmbedding
+
+in_channels: 3
+d_cond: 256

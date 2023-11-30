@@ -1,4 +1,4 @@
-from typing import Tuple, List
+from typing import Tuple, List, Dict
 
 import torch
 from torch import Tensor
@@ -10,6 +10,7 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.unet import UNet
 from src.models.diffusion.sampler import BaseSampler
+from src.models.diffusion.sampler import noise_like
 
 
 class DiffusionModel(nn.Module):
@@ -25,14 +26,15 @@ class DiffusionModel(nn.Module):
         img_dims: Tuple[int, int, int] = [1, 32, 32],
         gif_frequency: int = 20,
     ) -> None:
-        """
-        denoise_net: model to learn noise
-        sampler: sample image in diffusion 
-        n_train_steps: the number of  diffusion step for forward process
-        img_dims: resolution of image - [channels, width, height]
-        gif_frequency: 
-        """
+        """_summary_
 
+        Args:
+            denoise_net (UNet): model to learn noise
+            sampler (BaseSampler): sampler for process with image in diffusion
+            n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
+            img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
+            gif_frequency (int, optional): _description_. Defaults to 20.
+        """
         super().__init__()
 
         self.n_train_steps = n_train_steps
@@ -46,14 +48,20 @@ class DiffusionModel(nn.Module):
         x0: Tensor,
         sample_steps: Tensor | None = None,
         noise: Tensor | None = None,
-        cond: Tensor | None = None,
+        cond: Dict[str, Tensor] = None,
     ) -> Tuple[Tensor, Tensor]:
-        """
+        """_summary_
         ### forward diffusion process to create label for model training
-        x0
-        sample_steps:
-        noise:
-        cond:
+        Args:
+            x0 (Tensor): _description_
+            sample_steps (Tensor | None, optional): _description_. Defaults to None.
+            noise (Tensor | None, optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+
+        Returns:
+            Tuple[Tensor, Tensor]:
+                - pred: noise is predicted from xt by model
+                - target: noise is added to (x0 -> xt)
         """
         if sample_steps is None:
             #  generate sample timesteps ~ U(0, T - 1)
@@ -86,23 +94,33 @@ class DiffusionModel(nn.Module):
     def sample(self,
                xt: Tensor | None = None,
                sample_steps: Tensor | None = None,
-               cond: Tensor | None = None,
+               cond: Dict[str, Tensor] = None,
                num_sample: int | None = 1,
                noise: Tensor | None = None,
                repeat_noise: bool = False,
                device: torch.device = torch.device('cpu'),
                prog_bar: bool = False) -> List[Tensor]:
-        """
+        """_summary_
         ### reverse diffusion process
+        Args:
+            xt (Tensor | None, optional): _description_. Defaults to None.
+            sample_steps (Tensor | None, optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+            num_sample (int | None, optional): _description_. Defaults to 1.
+            noise (Tensor | None, optional): _description_. Defaults to None.
+            repeat_noise (bool, optional): _description_. Defaults to False.
+            device (torch.device, optional): _description_. Defaults to torch.device('cpu').
+            prog_bar (bool, optional): _description_. Defaults to False.
+
+        Returns:
+            List[Tensor]: _description_
         """
 
         # xt ~ N(0, I)
         if xt is None:
-            xt = torch.randn(num_sample,
-                             self.img_dims[0],
-                             self.img_dims[1],
-                             self.img_dims[2],
-                             device=device)
+            xt = noise_like([num_sample] + list(self.img_dims),
+                            device=device,
+                            repeat=repeat_noise)
         else:
             assert xt.shape[1:] == self.img_dims, 'shape of image not match'
             xt = xt.to(device)
@@ -110,9 +128,13 @@ class DiffusionModel(nn.Module):
         # list image to generate gif image
         gen_samples = [xt]
 
-        sample_steps = tqdm(
-            self.sampler.timesteps,
-            desc="Sampling t") if prog_bar else self.sampler.timesteps
+        if sample_steps is None:
+            sample_steps = tqdm(
+                self.sampler.timesteps) if prog_bar else self.sampler.timesteps
+        else:
+            assert sample_steps.shape[0] == xt.shape[
+                0], 'batch of sample_steps and xt not match'
+            sample_steps = tqdm(sample_steps) if prog_bar else sample_steps
 
         for i, t in enumerate(sample_steps):
             t = torch.full((xt.shape[0], ),
@@ -146,8 +168,7 @@ if __name__ == "__main__":
         cfg['n_train_steps'] = 1000
         cfg['img_dims'] = [1, 32, 32]
         cfg['sampler']['n_train_steps'] = 1000
-
-        print(cfg)
+        # print(cfg)
 
         diffusion_model: DiffusionModel = hydra.utils.instantiate(cfg)
 
@@ -158,8 +179,10 @@ if __name__ == "__main__":
 
         print('=' * 15, ' forward process ', '=' * 15)
         print('Input:', x.shape)
-        pred, target = diffusion_model(x, t)  # with given t
+        xt = diffusion_model.sampler.step(x, t)
+        pred, target = diffusion_model(x, )  # with given t
         pred, target = diffusion_model(x)  # without given t
+        print('xt:', xt.shape)
         print('Prediction:', pred.shape)
         print('Target:', target.shape)
 

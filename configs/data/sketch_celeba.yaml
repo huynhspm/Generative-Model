@@ -12,4 +12,3 @@ num_workers: 0
 pin_memory: True
 dataset_name: sketch_celeba
 n_classes: -1
-transform_condition: true

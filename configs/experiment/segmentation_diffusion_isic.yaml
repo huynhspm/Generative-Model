@@ -1,12 +1,12 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=vq_vae_gender
+# python train.py experiment=segmenation_diffusion_isic
 
 defaults:
-  - override /data: gender.yaml
-  - override /model: vae/vq_vae_module.yaml
-  - override /callbacks: vae.yaml
+  - override /data: isic.yaml
+  - override /model: diffusion/condition_diffusion_module.yaml
+  - override /callbacks: diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
@@ -15,27 +15,33 @@ defaults:
 
 seed: 12345
 
-task_name: "train_vae"
+task_name: "train_diffusion"
 
 trainer:
-  max_epochs: 100
+  max_epochs: 2000
   devices: 1
   check_val_every_n_epoch: 5
+  gradient_clip_val: 1.0
 
 data:
-  batch_size: 32
+  batch_size: 64
   num_workers: 20
 
 model:
   net:
-    # encode to 4x32x32
-    z_channels: 4
-    channels: 64
+    denoise_net:
+      img_channels: 1
+      n_layer_blocks: 1
+      channels: 64
+      channel_multipliers: [1, 2, 4, 4]
+      attention: SelfAttention
+      d_cond: null
+    cond_net: null
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "vae"
+    project: "diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
@@ -45,3 +51,5 @@ ckpt_path: null # simply provide checkpoint path to resume training
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
+  metrics:
+    IS: null

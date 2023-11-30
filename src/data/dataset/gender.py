@@ -8,6 +8,7 @@ class GenderDataset(Dataset):
 
     dataset_dir = 'gender'
     dataset_url = 'https://www.kaggle.com/datasets/yasserhessein/gender-dataset'
+    labels = ['Male', 'Female']
 
     def __init__(self, data_dir: str = 'data') -> None:
         super().__init__()
@@ -36,14 +37,16 @@ class GenderDataset(Dataset):
     def __getitem__(self, index):
         img_path = self.img_paths[index]
         image = imageio.v2.imread(img_path)
-        label = int(img_path.split('/')[-2] == 'Female')
-        return image, label
+        label = self.labels.index(img_path.split('/')[-2])
+
+        return image, {'label': label}
 
 
 if __name__ == "__main__":
     dataset = GenderDataset(data_dir='data')
     print(len(dataset))
-    image, label = dataset[0]
+    image, cond = dataset[0]
+    label = cond['label']
     print(image.shape, label)
 
     import matplotlib.pyplot as plt

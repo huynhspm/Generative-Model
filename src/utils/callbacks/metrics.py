@@ -1,4 +1,4 @@
-from typing import Any
+from typing import Any, Dict
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 import torch
 from torch import Tensor
@@ -8,6 +8,8 @@ from pytorch_lightning.callbacks import Callback
 from torchmetrics.image import (StructuralSimilarityIndexMeasure,
                                 PeakSignalNoiseRatio, FrechetInceptionDistance,
                                 InceptionScore)
+
+from torchmetrics import Dice
 
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
@@ -20,18 +22,32 @@ class Metrics(Callback):
                  psnr: PeakSignalNoiseRatio | None = None,
                  fid: FrechetInceptionDistance | None = None,
                  IS: InceptionScore | None = None,
+                 dice: Dice | None = None,
                  mean: float = 0.5,
                  std: float = 0.5):
+        """_summary_
+
+        Args:
+            ssim (StructuralSimilarityIndexMeasure | None, optional): metrics for VAE. Defaults to None.
+            psnr (PeakSignalNoiseRatio | None, optional): metrics for VAE. Defaults to None.
+            fid (FrechetInceptionDistance | None, optional): metrics for generation task (diffusion, gan). Defaults to None.
+            IS (InceptionScore | None, optional): metrics for generation task (not good - weight of inception-v3). Defaults to None.
+            dice (Dice | None, optional): metrics for segmentation task. Defaults to None.
+            mean (float, optional): to convert image into (0, 1). Defaults to 0.5.
+            std (float, optional): to convert image into (0, 1). Defaults to 0.5.
+        """
+
         self.ssim = ssim
         self.psnr = psnr
         self.fid = fid
         self.IS = IS
+        self.dice = dice
 
         self.mean = mean
         self.std = std
 
-    # def on_train_start(self, trainer: Trainer,
-    #                    pl_module: LightningModule) -> None:
+    # def on_train_epoch_start(self, trainer: Trainer,
+    #                          pl_module: LightningModule) -> None:
     #     self.reset_metrics()
 
     # def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule,
@@ -45,8 +61,8 @@ class Metrics(Callback):
     #                        pl_module: LightningModule) -> None:
     #     self.log_metrics(pl_module, mode='train')
 
-    def on_validation_start(self, trainer: Trainer,
-                            pl_module: LightningModule) -> None:
+    def on_validation_epoch_start(self, trainer: Trainer,
+                                  pl_module: LightningModule) -> None:
         self.reset_metrics()
 
     def on_validation_batch_end(self, trainer: Trainer,
@@ -57,11 +73,12 @@ class Metrics(Callback):
         fakes = self.get_sample(pl_module, reals, conds)
         self.update_metrics(reals, fakes, device=pl_module.device)
 
-    def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+    def on_validation_epoch_end(self, trainer: Trainer,
+                                pl_module: LightningModule) -> None:
         self.log_metrics(pl_module, mode='val')
 
-    def on_test_start(self, trainer: Trainer,
-                      pl_module: LightningModule) -> None:
+    def on_test_epoch_start(self, trainer: Trainer,
+                            pl_module: LightningModule) -> None:
         self.reset_metrics()
 
     def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule,
@@ -78,7 +95,7 @@ class Metrics(Callback):
     def get_sample(self,
                    pl_module: LightningModule,
                    reals: Tensor | None = None,
-                   conds: Tensor | None = None):
+                   conds: Dict[str, Tensor] = None):
         if isinstance(pl_module, VAEModule):
             if pl_module.use_ema:
                 with pl_module.ema_scope():
@@ -114,6 +131,12 @@ class Metrics(Callback):
         if self.fid is not None:
             self.fid.reset()
 
+        if self.IS is not None:
+            self.IS.reset()
+
+        if self.dice is not None:
+            self.dice.reset()
+
     def update_metrics(self, reals: Tensor, fakes: Tensor,
                        device: torch.device):
         # convert range (-1, 1) to (0, 1)
@@ -130,6 +153,14 @@ class Metrics(Callback):
             self.psnr.to(device)
             self.psnr.update(fakes, reals)
             self.psnr.to('cpu')
+
+        if self.dice is not None:
+            threshold = 0.5
+            targets = (reals > threshold).to(torch.int64)
+            preds = (fakes > threshold).to(torch.int64)
+            self.dice.to(device)
+            self.dice.update(targets, preds)
+            self.dice.to('cpu')
 
         # gray image
         if reals.shape[1] == 1:
@@ -175,6 +206,16 @@ class Metrics(Callback):
                           sync_dist=True)
             self.psnr.to('cpu')
 
+        if self.dice is not None:
+            self.dice.to(pl_module.device)
+            pl_module.log(mode + '/dice',
+                          self.dice.compute(),
+                          on_step=False,
+                          on_epoch=True,
+                          prog_bar=False,
+                          sync_dist=True)
+            self.dice.to('cpu')
+
         if self.fid is not None:
             self.fid.to(pl_module.device)
             pl_module.log(mode + '/fid',
@@ -199,4 +240,4 @@ class Metrics(Callback):
                           on_epoch=True,
                           prog_bar=False,
                           sync_dist=True)
-            self.fid.to('cpu')
+            self.IS.to('cpu')

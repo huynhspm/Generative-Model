@@ -23,7 +23,7 @@ trainer:
   check_val_every_n_epoch: 5
 
 data:
-  batch_size: 64
+  batch_size: 8
   num_workers: 20
 
 model:
@@ -39,6 +39,9 @@ logger:
     project: "vae"
     tags: ${tags}
     group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
   gen_sample:

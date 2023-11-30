@@ -75,7 +75,7 @@ class DiffusionModule(pl.LightningModule):
 
     def forward(self,
                 x: Tensor,
-                cond: Tensor | None = None) -> Tuple[Tensor, Tensor]:
+                cond: Dict[str, Tensor] = None) -> Tuple[Tensor, Tensor]:
         """Perform a forward pass through the model `self.net`.
 
         :param x: A tensor of images.
@@ -234,15 +234,18 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="diffusion_module.yaml")
     def main(cfg: DictConfig):
+        cfg['net']['n_train_steps'] = 1000
         cfg['net']['img_dims'] = [1, 32, 32]
+        cfg['net']['sampler']['n_train_steps'] = 1000
         # print(cfg)
 
         diffusion_module: DiffusionModule = hydra.utils.instantiate(cfg)
 
         x = torch.randn(2, 1, 32, 32)
-        targets, preds = diffusion_module(x)
-        print('***** Diffusion_Module *****')
+        pred, target = diffusion_module(x)
+        print('*' * 20, ' DIFFUSION MODULE ', '*' * 20)
         print('Input:', x.shape)
-        print('Output:', targets.shape, preds.shape)
+        print('Prediction:', pred.shape)
+        print('Target:', target.shape)
 
     main()

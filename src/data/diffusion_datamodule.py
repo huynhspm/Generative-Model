@@ -3,6 +3,7 @@ from typing import Any, Dict, Optional, Tuple
 import numpy as np
 import torch
 import pyrootutils
+from torch import Tensor
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset, random_split
 import albumentations as A
@@ -16,12 +17,8 @@ from src.data.dataset import init_dataset
 
 class TransformDataset(Dataset):
 
-    def __init__(self,
-                 dataset: Dataset,
-                 transform: Optional[Compose] = None,
-                 transform_condition: bool = False):
+    def __init__(self, dataset: Dataset, transform: Optional[Compose] = None):
         self.dataset = dataset
-        self.transform_condition = transform_condition
 
         assert transform is not None, ('transform is None')
         self.transform = transform
@@ -31,9 +28,9 @@ class TransformDataset(Dataset):
 
     def __getitem__(self, idx):
         image, cond = self.dataset[idx]
-        if self.transform_condition:
-            transformed = self.transform(image=image, cond=cond)
-            image, cond = transformed["image"], transformed["cond"]
+        if cond is not None and 'image' in cond.keys():
+            transformed = self.transform(image=image, cond=cond['image'])
+            image, cond['image'] = transformed["image"], transformed["cond"]
         else:
             image = self.transform(image=np.array(image))["image"]
 
@@ -79,7 +76,6 @@ class DiffusionDataModule(pl.LightningDataModule):
         pin_memory: bool = False,
         dataset_name: str = 'mnist',
         n_classes: str = 10,
-        transform_condition: bool = False,
     ):
         """
         data_dir: 
@@ -91,7 +87,6 @@ class DiffusionDataModule(pl.LightningDataModule):
         pin_memory:
         dataset_name:
         n_classes:
-        transform_condition:
         """
         super().__init__()
 
@@ -136,16 +131,11 @@ class DiffusionDataModule(pl.LightningDataModule):
                   len(self.data_test))
             self.data_train = TransformDataset(
                 dataset=self.data_train,
-                transform=self.hparams.transform_train,
-                transform_condition=self.hparams.transform_condition)
+                transform=self.hparams.transform_train)
             self.data_val = TransformDataset(
-                dataset=self.data_val,
-                transform=self.hparams.transform_val,
-                transform_condition=self.hparams.transform_condition)
+                dataset=self.data_val, transform=self.hparams.transform_val)
             self.data_test = TransformDataset(
-                dataset=self.data_test,
-                transform=self.hparams.transform_val,
-                transform_condition=self.hparams.transform_condition)
+                dataset=self.data_test, transform=self.hparams.transform_val)
 
     def train_dataloader(self):
         return DataLoader(
@@ -210,40 +200,50 @@ if __name__ == "__main__":
         print('train_dataloader:', len(train_dataloader))
 
         batch_image = next(iter(train_dataloader))
-        images, conds = batch_image
+        image, cond = batch_image
+        cond_label = cond['label'] if 'label' in cond.keys() else None
+        cond_image = cond['image'] if 'image' in cond.keys() else None
 
-        print('Image shape:', images.shape)
-        print('Cond shape:', conds.shape)
+        print('Image shape:', image.shape)
 
+        if cond_label is not None:
+            print('Cond label shape:', cond_label.shape)
+
+        if cond_image is not None:
+            print('Cond image shape:', cond_image.shape)
+
+        visualize(image, cond_image, cond_label)
+
+    def visualize(image: Tensor, cond_image: Tensor | None,
+                  cond_label: Tensor | None):
         import matplotlib.pyplot as plt
-        from torchvision.utils import make_grid
+        from torchvision.utils import make_grid, save_image
 
         mean = 0.5
         std = 0.5
-        images = ((images * std + mean))
-        image = make_grid(images[:25], nrow=5)
+        image = ((image * std + mean))
+        image = make_grid(image[:25], nrow=5)
 
-        from torchvision.utils import save_image
+        if cond_label is not None:
+            print(cond_label[:25])
 
-        if len(conds.shape) < 3:
-            print(conds[0:25])
-            print(image.shape)
+        if cond_image is None:
+            save_image(image, 'image.jpg')
             plt.imshow(image.moveaxis(0, 2))
             plt.show()
         else:
-            conds = ((conds * std + mean))
-            cond = make_grid(conds[:25], nrow=5)
-            print(image.shape, cond.shape)
+            cond_image = ((cond_image * std + mean))
+            cond_image = make_grid(cond_image[:25], nrow=5)
 
             save_image(image, 'image.jpg')
-            save_image(cond, 'cond.jpg')
+            save_image(cond_image, 'cond.jpg')
 
             plt.figure(figsize=(16, 8))
             plt.subplot(1, 2, 1)
             plt.imshow(image.moveaxis(0, 2))
             plt.title('Image')
             plt.subplot(1, 2, 2)
-            plt.imshow(cond.moveaxis(0, 2))
+            plt.imshow(cond_image.moveaxis(0, 2))
             plt.title('Condition')
             plt.show()
 

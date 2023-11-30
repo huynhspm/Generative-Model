@@ -1,4 +1,4 @@
-from typing import List, Optional, Tuple
+from typing import List, Tuple, Dict
 
 import torch
 from torch import Tensor
@@ -27,14 +27,16 @@ class LatentDiffusionModel(DiffusionModel):
             gif_frequency: int = 20,
             latent_scaling_factor: float = 1.0,  # 0.3643
     ) -> None:
-        """
-        autoencoder_weight_path
-        denoise_net: model to learn noise
-        sampler: sample image in diffusion 
-        n_train_steps: the number of  diffusion step for forward process
-        img_dims: resolution of image - [channels, width, height]
-        gif_frequency:
-        latent_scaling_factor:
+        """_summary_
+
+        Args:
+            autoencoder_weight_path (str): _description_
+            denoise_net (UNet): model to learn noise
+            sampler (BaseSampler): sampler for process with image in diffusion 
+            n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
+            img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
+            gif_frequency (int, optional): _description_. Defaults to 20.
+            latent_scaling_factor (float, optional): _description_. Defaults to 1.0.
         """
 
         super().__init__(denoise_net, sampler, n_train_steps, img_dims,
@@ -64,11 +66,26 @@ class LatentDiffusionModel(DiffusionModel):
         return self.autoencoder_module.net.decode(z /
                                                   self.latent_scaling_factor)
 
-    def forward(self,
-                x0: Tensor,
-                sample_steps: Tensor | None = None,
-                noise: Tensor | None = None,
-                cond: Tensor | None = None) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self,
+        x0: Tensor,
+        sample_steps: Tensor | None = None,
+        noise: Tensor | None = None,
+        cond: Dict[str, Tensor] = None,
+    ) -> Tuple[Tensor, Tensor]:
+        """_summary_
+        ### forward diffusion process to create label for model training
+        Args:
+            x0 (Tensor): _description_
+            sample_steps (Tensor | None, optional): _description_. Defaults to None.
+            noise (Tensor | None, optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+
+        Returns:
+            Tuple[Tensor, Tensor]:
+                - pred: noise is predicted from xt by model
+                - target: noise is added to (x0 -> xt)
+        """
         z = self.autoencoder_encode(x0)
         return super().forward(z, sample_steps, noise, cond)
 
@@ -76,13 +93,28 @@ class LatentDiffusionModel(DiffusionModel):
     def sample(self,
                xt: Tensor | None = None,
                sample_steps: Tensor | None = None,
-               cond: Tensor | None = None,
+               cond: Dict[str, Tensor] = None,
                num_sample: int | None = 1,
                noise: Tensor | None = None,
                repeat_noise: bool = False,
                device: torch.device = torch.device('cpu'),
                prog_bar: bool = False) -> List[Tensor]:
+        """_summary_
+        ### reverse diffusion process
+        Args:
+            xt (Tensor | None, optional): _description_. Defaults to None.
+            sample_steps (Tensor | None, optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+            num_sample (int | None, optional): _description_. Defaults to 1.
+            noise (Tensor | None, optional): _description_. Defaults to None.
+            repeat_noise (bool, optional): _description_. Defaults to False.
+            device (torch.device, optional): _description_. Defaults to torch.device('cpu').
+            prog_bar (bool, optional): _description_. Defaults to False.
 
+        Returns:
+            List[Tensor]: _description_
+        """
+        
         z_samples = super().sample(xt, sample_steps, cond, num_sample, noise,
                                    repeat_noise, device, prog_bar)
         return [self.autoencoder_decode(z) for z in z_samples]
@@ -101,47 +133,11 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="latent_diffusion_model.yaml")
     def main(cfg: DictConfig):
-        cfg['n_steps'] = 100
-
+        cfg['n_train_steps'] = 1000
+        cfg['sampler']['n_train_steps'] = 1000
         # print(cfg)
 
         latent_diffusion_model: LatentDiffusionModel = hydra.utils.instantiate(
             cfg)
-
-        x = torch.randn(2, 3, 32, 32)
-        t = torch.randint(0, 100, (2, ))
-        out1 = latent_diffusion_model(x, t)
-        print('***** Latent Diffusion_Model *****')
-        print('Input:', x.shape)
-        print('Output:', out1.shape)
-
-        print('-' * 60)
-
-        print('***** q_sample *****')
-        print('Input:', x.shape)
-        targets, preds = latent_diffusion_model.get_q_sample(x)
-        print('Output:', targets.shape, preds.shape)
-
-        print('-' * 60)
-
-        print('***** p_sample *****')
-        t = Tensor([2]).to(torch.int64)
-        cond = Tensor([[1], [2]]).to(torch.int64)
-        images = latent_diffusion_model.get_p_sample(num_sample=2,
-                                                     prog_bar=True)
-        print(len(images), images[0].shape)
-        # print(latent_diffusion_model.denoise_sample(x, t).shape)
-
-        print('-' * 60)
-
-        cfg.denoise_net.n_classes = 2
-        cond = torch.randint(0, 2, (2, ))
-        x = torch.randn(2, 32, 8, 8)
-        cond_latent_diffusion: LatentDiffusionModel = hydra.utils.instantiate(
-            cfg)
-        out2 = cond_latent_diffusion(x, t, cond=cond)
-        print('***** Condition_Diffusion_Model *****')
-        print('Input:', x.shape)
-        print('Output:', out2.shape)
 
     main()

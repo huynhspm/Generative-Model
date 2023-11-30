@@ -3,3 +3,4 @@ gen_sample:
   grid_shape: [10, 10]
   mean: ${data.transform_val.transforms[1].mean}
   std: ${data.transform_val.transforms[1].std}
+  log_cond: False

@@ -154,5 +154,5 @@ configs/local/default.yaml
 .aim
 
 /outputs
-train_vae.sh
-train_diffusion.sh
+scripts/train_vae.sh
+scripts/train_diffusion.sh

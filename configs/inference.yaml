@@ -1,13 +1,12 @@
 defaults:
-  - data: cifar10.yaml
+  - data: fashion.yaml
   - paths: default.yaml
   - hydra: default.yaml
   - _self_
 
 task_name: inference
 device: cuda
-checkpoint: last
-gen_type: ddim
-checkpoint_dir: "${paths.log_dir}/train_diffusion/runs/2023-08-12_13-58-19/checkpoints/"
+grid_shape: [10, 10]
+ckpt_path: null # ${paths.log_dir}/.../.ckpt
 mean: ${data.transform_val.transforms[1].mean}
 std: ${data.transform_val.transforms[1].std}

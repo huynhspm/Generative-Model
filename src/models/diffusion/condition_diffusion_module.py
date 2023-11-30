@@ -9,6 +9,7 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 from src.models.diffusion import DiffusionModule
 from src.models.diffusion.net import DiffusionModel
 
+
 class ConditionDiffusionModule(DiffusionModule):
 
     def __init__(
@@ -40,17 +41,27 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="condition_diffusion_module.yaml")
     def main(cfg: DictConfig):
+        cfg['net']['n_train_steps'] = 1000
+        cfg['net']['sampler']['n_train_steps'] = 1000
         cfg['net']['img_dims'] = [1, 32, 32]
+        cfg['net']['denoise_net']['d_cond_image'] = 1
         cfg['net']['denoise_net']['n_classes'] = 2
         # print(cfg)
 
-        condition_diffusion_module: ConditionDiffusionModule = hydra.utils.instantiate(cfg)
-        
+        condition_diffusion_module: ConditionDiffusionModule = hydra.utils.instantiate(
+            cfg)
+
         x = torch.randn(2, 1, 32, 32)
-        cond = torch.Tensor([0, 1]).type(torch.int64)
-        preds, targets = condition_diffusion_module(x, cond)
-        print('***** Condition_Diffusion_Module *****')
+        cond = {
+            'label':
+            torch.randint(0, cfg['net']['denoise_net']['n_classes'], (2, )),
+            'image':
+            torch.rand_like(x),
+        }
+        pred, target = condition_diffusion_module(x, cond)
+        print('***** CONDITION DIFFUSION MODEL MODULE *****')
         print('Input:', x.shape)
-        print('Output:', targets.shape, preds.shape)
+        print('Prediction:', pred.shape)
+        print('Target:', target.shape)
 
     main()

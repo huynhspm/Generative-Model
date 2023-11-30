@@ -36,21 +36,23 @@ class SketchCelebADataset(Dataset):
 
     def __getitem__(self, index):
         img_path = self.img_paths[index]
-        name = img_path.split('/')
-        # sketch_path = osp.join(self.dataset_dir, 'sketch', name[-1])
-
         image = imageio.v2.imread(img_path)
-        # sketch = imageio.v2.imread(sketch_path)
-        # sketch = cv2.GaussianBlur(sketch, (3, 3), None)
-        # sketch = cv2.erode(sketch, kernel=(3, 3), iterations=3)
-        sketch = get_sketch(image)
-        return image, sketch
+        # sketch = get_sketch(image)
+
+        name = img_path.split('/')
+        sketch_path = osp.join(self.dataset_dir, 'sketch', name[-1])
+        sketch = imageio.v2.imread(sketch_path)
+        sketch = cv2.GaussianBlur(sketch, (3, 3), None)
+        sketch = cv2.erode(sketch, kernel=(3, 3), iterations=3)
+
+        return image, {'image': sketch}
 
 
 if __name__ == "__main__":
     dataset = SketchCelebADataset(data_dir='data')
     print(len(dataset))
-    image, sketch = dataset[10]
+    image, cond = dataset[0]
+    sketch = cond['image']
     print(image.shape, sketch.shape)
 
     import matplotlib.pyplot as plt

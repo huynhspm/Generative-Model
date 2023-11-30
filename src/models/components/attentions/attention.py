@@ -8,9 +8,9 @@ class AttnBlock(nn.Module):
     ## Attention block
     """
 
-    def __init__(self, 
+    def __init__(self,
                  channels: int,
-                 n_heads: int = None, 
+                 n_heads: int = None,
                  n_layers: int = None):
         """
         channels: is the number of channels
@@ -18,7 +18,8 @@ class AttnBlock(nn.Module):
         super().__init__()
 
         # normalization
-        self.norm = nn.Sequential(nn.GroupNorm(32, channels), nn.SiLU(inplace=True))
+        self.norm = nn.Sequential(nn.GroupNorm(32, channels),
+                                  nn.SiLU(inplace=True))
 
         # Query, key and value mappings
         self.q = nn.Conv2d(channels, channels, 1)

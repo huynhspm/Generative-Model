@@ -11,5 +11,4 @@ batch_size: 128
 num_workers: 0
 pin_memory: True
 dataset_name: edge_coco
-n_classes: -1
-transform_condition: true
+n_classes: 14
