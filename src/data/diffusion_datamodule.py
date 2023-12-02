@@ -32,7 +32,7 @@ class TransformDataset(Dataset):
             transformed = self.transform(image=image, cond=cond['image'])
             image, cond['image'] = transformed["image"], transformed["cond"]
         else:
-            image = self.transform(image=np.array(image))["image"]
+            image = self.transform(image=image)["image"]
 
         return image, cond
 
@@ -212,10 +212,12 @@ if __name__ == "__main__":
         if cond_image is not None:
             print('Cond image shape:', cond_image.shape)
 
-        visualize(image, cond_image, cond_label)
+        visualize(image, cond_image, cond_label, save_img=False)
 
-    def visualize(image: Tensor, cond_image: Tensor | None,
-                  cond_label: Tensor | None):
+    def visualize(image: Tensor,
+                  cond_image: Tensor | None,
+                  cond_label: Tensor | None,
+                  save_img: bool = False):
         import matplotlib.pyplot as plt
         from torchvision.utils import make_grid, save_image
 
@@ -228,15 +230,18 @@ if __name__ == "__main__":
             print(cond_label[:25])
 
         if cond_image is None:
-            save_image(image, 'image.jpg')
+            if save_img:
+                save_image(image, 'image.jpg')
+
             plt.imshow(image.moveaxis(0, 2))
             plt.show()
         else:
             cond_image = ((cond_image * std + mean))
             cond_image = make_grid(cond_image[:25], nrow=5)
 
-            save_image(image, 'image.jpg')
-            save_image(cond_image, 'cond.jpg')
+            if save_img:
+                save_image(image, 'image.jpg')
+                save_image(cond_image, 'cond.jpg')
 
             plt.figure(figsize=(16, 8))
             plt.subplot(1, 2, 1)

@@ -23,10 +23,6 @@ gen_sample:
 
 metrics:
   _target_: src.utils.callbacks.Metrics
-  fid:
-    _target_: torchmetrics.image.FrechetInceptionDistance
-    feature: 2048
-    normalize: True
   dice:
     _target_: torchmetrics.Dice
     average: micro

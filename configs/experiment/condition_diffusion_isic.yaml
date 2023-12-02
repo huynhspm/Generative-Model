@@ -31,13 +31,8 @@ model:
   net:
     denoise_net:
       img_channels: 3
-      n_layer_blocks: 1
-      channels: 64
+      n_layer_blocks: 2
       channel_multipliers: [1, 2, 4, 4]
-    cond_net:
-      _target_: src.models.components.embeds.MaskEmbedding
-      in_channels: 1
-      d_cond: 256
 
 logger:
   wandb:
@@ -52,6 +47,5 @@ ckpt_path: null # simply provide checkpoint path to resume training
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
-    log_cond: True
   metrics:
     IS: null

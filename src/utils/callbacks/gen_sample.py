@@ -20,7 +20,6 @@ class GenSample(Callback):
         self.grid_shape = grid_shape
         self.mean = mean
         self.std = std
-        self.log_cond = log_cond
         self.images = {
             'train': None,
             'val': None,
@@ -90,7 +89,12 @@ class GenSample(Callback):
 
     @torch.no_grad()  # for VAE forward
     def sample(self, trainer: Trainer, pl_module: LightningModule, mode: str):
-        n_samples = self.grid_shape[0] * self.grid_shape[1]
+        # for eval before resuming training: store data not enough to grid
+        if self.images[mode] == None:
+            return
+
+        n_samples = min(self.grid_shape[0] * self.grid_shape[1],
+                        self.images[mode].shape[0])
 
         if isinstance(pl_module, VAEModule):
             targets = self.images[mode][:n_samples]
@@ -112,10 +116,12 @@ class GenSample(Callback):
             self.interpolation(pl_module, trainer, mode=mode)
 
         elif isinstance(pl_module, DiffusionModule):
+            # checking before resume training
+            if self.images[mode] is None:
+                return
+
             conds = None
             if isinstance(pl_module, ConditionDiffusionModule):
-                from IPython import embed
-                embed()
                 for key in self.conds[mode].keys():
                     self.conds[mode][key] = self.conds[mode][key][:n_samples]
                 conds = self.conds[mode]
@@ -132,12 +138,13 @@ class GenSample(Callback):
             reals = (reals * self.std + self.mean).clamp(0, 1)
 
             self.log_sample(
-                [fakes, reals, conds] if self.log_cond else [fakes, reals],
+                [fakes, reals, conds['image']] if conds is not None
+                and 'image' in conds.keys() else [fakes, reals],
                 trainer=trainer,
                 nrow=self.grid_shape[0],
                 mode=mode,
-                caption=['fake', 'real', 'cond']
-                if self.log_cond else ['fake', 'real'])
+                caption=['fake', 'real', 'cond'] if conds is not None
+                and 'image' in conds.keys() else ['fake', 'real'])
 
             self.interpolation(pl_module, trainer, mode=mode)
 
