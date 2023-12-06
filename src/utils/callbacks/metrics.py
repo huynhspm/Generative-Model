@@ -9,7 +9,7 @@ from torchmetrics.image import (StructuralSimilarityIndexMeasure,
                                 PeakSignalNoiseRatio, FrechetInceptionDistance,
                                 InceptionScore)
 
-from torchmetrics import Dice
+from torchmetrics import Dice, JaccardIndex
 
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
@@ -23,6 +23,7 @@ class Metrics(Callback):
                  fid: FrechetInceptionDistance | None = None,
                  IS: InceptionScore | None = None,
                  dice: Dice | None = None,
+                 iou: JaccardIndex | None = None,
                  mean: float = 0.5,
                  std: float = 0.5):
         """_summary_
@@ -33,6 +34,7 @@ class Metrics(Callback):
             fid (FrechetInceptionDistance | None, optional): metrics for generation task (diffusion, gan). Defaults to None.
             IS (InceptionScore | None, optional): metrics for generation task (not good - weight of inception-v3). Defaults to None.
             dice (Dice | None, optional): metrics for segmentation task. Defaults to None.
+            iou (JaccardIndex | None, optional): metrics for segmentation task. Defaults to None.
             mean (float, optional): to convert image into (0, 1). Defaults to 0.5.
             std (float, optional): to convert image into (0, 1). Defaults to 0.5.
         """
@@ -42,6 +44,7 @@ class Metrics(Callback):
         self.fid = fid
         self.IS = IS
         self.dice = dice
+        self.iou = iou
 
         self.mean = mean
         self.std = std
@@ -137,6 +140,9 @@ class Metrics(Callback):
         if self.dice is not None:
             self.dice.reset()
 
+        if self.iou is not None:
+            self.iou.reset()
+
     def update_metrics(self, reals: Tensor, fakes: Tensor,
                        device: torch.device):
         # convert range (-1, 1) to (0, 1)
@@ -154,13 +160,17 @@ class Metrics(Callback):
             self.psnr.update(fakes, reals)
             self.psnr.to('cpu')
 
+        targets = (reals > 0.5).to(torch.int64)
+
         if self.dice is not None:
-            threshold = 0.5
-            targets = (reals > threshold).to(torch.int64)
-            preds = (fakes > threshold).to(torch.int64)
             self.dice.to(device)
-            self.dice.update(targets, preds)
+            self.dice.update(fakes, targets)
             self.dice.to('cpu')
+
+        if self.iou is not None:
+            self.iou.to(device)
+            self.iou.update(fakes, targets)
+            self.iou.to('cpu')
 
         # gray image
         if reals.shape[1] == 1:
@@ -215,6 +225,16 @@ class Metrics(Callback):
                           prog_bar=False,
                           sync_dist=True)
             self.dice.to('cpu')
+
+        if self.iou is not None:
+            self.iou.to(pl_module.device)
+            pl_module.log(mode + '/iou',
+                          self.iou.compute(),
+                          on_step=False,
+                          on_epoch=True,
+                          prog_bar=False,
+                          sync_dist=True)
+            self.iou.to('cpu')
 
         if self.fid is not None:
             self.fid.to(pl_module.device)

@@ -18,11 +18,14 @@ model_checkpoint:
 model_summary:
   max_depth: -1
 
-gen_sample:
-  log_cond: True
-
 metrics:
   _target_: src.utils.callbacks.Metrics
   dice:
     _target_: torchmetrics.Dice
+    threshold: 0.5
     average: micro
+  iou:
+    _target_: torchmetrics.JaccardIndex
+    threshold: 0.5
+    average: micro
+    task: binary

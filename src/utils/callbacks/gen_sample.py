@@ -12,11 +12,7 @@ from src.models.vae import VAEModule
 
 class GenSample(Callback):
 
-    def __init__(self,
-                 grid_shape: Tuple[int, int],
-                 mean: float,
-                 std: float,
-                 log_cond: bool = False):
+    def __init__(self, grid_shape: Tuple[int, int], mean: float, std: float):
         self.grid_shape = grid_shape
         self.mean = mean
         self.std = std
