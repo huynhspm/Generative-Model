@@ -1,5 +1,6 @@
 from .afhq import AFHQDataset
 from .anime import AnimeDataset
+from .brats import BRATSDataset
 from .celeba import CelebADataset
 from .cifar10 import Cifar10Dataset
 from .cvc_clinic import CVCClinicDataset
@@ -16,6 +17,7 @@ from .sketch_coco import SketchCOCODataset
 __datasets = {
     'afhq': AFHQDataset,
     'anime': AnimeDataset,
+    'brats': BRATSDataset,
     'celeba': CelebADataset,
     'cifar10': Cifar10Dataset,
     'cvc_clinic': CVCClinicDataset,

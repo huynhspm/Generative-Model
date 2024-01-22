@@ -7,14 +7,14 @@ from torch.optim import Optimizer, lr_scheduler
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.diffusion import DiffusionModule
-from src.models.diffusion.net import DiffusionModel
+from src.models.diffusion.net import ConditionDiffusionModel
 
 
 class ConditionDiffusionModule(DiffusionModule):
 
     def __init__(
         self,
-        net: DiffusionModel,
+        net: ConditionDiffusionModel,
         optimizer: Optimizer,
         scheduler: lr_scheduler,
         use_ema: bool = False,

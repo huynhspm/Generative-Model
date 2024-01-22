@@ -29,11 +29,14 @@ class TransformDataset(Dataset):
     def __getitem__(self, idx):
         image, cond = self.dataset[idx]
         if cond is not None and 'image' in cond.keys():
-            transformed = self.transform(image=image, cond=cond['image'])
-            image, cond['image'] = transformed["image"], transformed["cond"]
+            if cond['image'].shape[0] == 4:
+                image = image.unsqueeze(0)
+            else:
+                transformed = self.transform(image=image, cond=cond['image'])
+                image, cond['image'] = transformed["image"], transformed[
+                    "cond"]
         else:
             image = self.transform(image=image)["image"]
-
         return image, cond
 
 
@@ -188,12 +191,12 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="sketch_celeba.yaml")
+                config_name="brats.yaml")
     def main(cfg: DictConfig):
         print(cfg)
 
         datamodule: DiffusionDataModule = hydra.utils.instantiate(
-            cfg, data_dir=f"{root}/data")
+            cfg, data_dir=f"{root}/data", batch_size=16)
         datamodule.setup()
 
         train_dataloader = datamodule.train_dataloader()
