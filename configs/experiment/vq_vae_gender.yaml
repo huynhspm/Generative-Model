@@ -25,10 +25,11 @@ trainer:
 data:
   batch_size: 32
   num_workers: 20
+  image_size: 128
 
 model:
   net:
-    # encode to 4x32x32
+    # encode 3x128x128 to 4x32x32
     z_channels: 4
     channels: 64
 

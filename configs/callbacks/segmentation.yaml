@@ -20,6 +20,7 @@ model_summary:
 
 metrics:
   _target_: src.utils.callbacks.Metrics
+  n_ensemble: 5
   dice:
     _target_: torchmetrics.Dice
     threshold: 0.5
@@ -29,3 +30,10 @@ metrics:
     threshold: 0.5
     average: micro
     task: binary
+  mean_variance:
+    _target_: torchmetrics.MeanMetric
+  mean_boundary_variance:
+    _target_: torchmetrics.MeanMetric
+
+gen_sample:
+  n_ensemble: 5

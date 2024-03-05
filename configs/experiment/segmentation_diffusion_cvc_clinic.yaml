@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_diffusion"
+task_name: "train_segmentation_diffusion"
 
 trainer:
   max_epochs: 2000
@@ -26,17 +26,19 @@ trainer:
 data:
   batch_size: 64
   num_workers: 20
+  image_size: 64
 
 model:
   net:
     denoise_net:
       channel_multipliers: [1, 2, 4, 4]
       d_cond_image: 3
+    classifier_free: false
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "diffusion"
+    project: "segmentation-diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

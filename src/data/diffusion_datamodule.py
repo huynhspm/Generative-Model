@@ -1,6 +1,5 @@
 from typing import Any, Dict, Optional, Tuple
 
-import numpy as np
 import torch
 import pyrootutils
 from torch import Tensor
@@ -79,6 +78,7 @@ class DiffusionDataModule(pl.LightningDataModule):
         pin_memory: bool = False,
         dataset_name: str = 'mnist',
         n_classes: str = 10,
+        image_size: int = 32,
     ):
         """
         data_dir: 
@@ -104,6 +104,10 @@ class DiffusionDataModule(pl.LightningDataModule):
     @property
     def num_classes(self):
         return self.hparams.n_classes
+
+    @property
+    def image_size(self):
+        return self.hparams.image_size
 
     def prepare_data(self):
         """Download data if needed.
@@ -191,12 +195,12 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="brats.yaml")
+                config_name="isic.yaml")
     def main(cfg: DictConfig):
         print(cfg)
 
         datamodule: DiffusionDataModule = hydra.utils.instantiate(
-            cfg, data_dir=f"{root}/data", batch_size=16)
+            cfg, data_dir=f"{root}/data")
         datamodule.setup()
 
         train_dataloader = datamodule.train_dataloader()
@@ -216,6 +220,7 @@ if __name__ == "__main__":
             print('Cond image shape:', cond_image.shape)
 
         visualize(image, cond_image, cond_label, save_img=False)
+        # gen_noise_image(xt=cond_image[0])
 
     def visualize(image: Tensor,
                   cond_image: Tensor | None,
@@ -227,10 +232,18 @@ if __name__ == "__main__":
         mean = 0.5
         std = 0.5
         image = ((image * std + mean))
-        image = make_grid(image[:25], nrow=5)
+        cond_image = ((cond_image * std + mean))
+
+        save_image(image[0], 'image.jpg')
+        save_image(cond_image[0], 'cond.jpg')
+
+        n_image = 9
+        n_row = 3
+
+        image = make_grid(image[:n_image], nrow=n_row)
 
         if cond_label is not None:
-            print(cond_label[:25])
+            print(cond_label[:n_image])
 
         if cond_image is None:
             if save_img:
@@ -240,7 +253,7 @@ if __name__ == "__main__":
             plt.show()
         else:
             cond_image = ((cond_image * std + mean))
-            cond_image = make_grid(cond_image[:25], nrow=5)
+            cond_image = make_grid(cond_image[:n_image], nrow=n_row)
 
             if save_img:
                 save_image(image, 'image.jpg')
@@ -254,5 +267,24 @@ if __name__ == "__main__":
             plt.imshow(cond_image.moveaxis(0, 2))
             plt.title('Condition')
             plt.show()
+
+    def gen_noise_image(xt):
+
+        import matplotlib.pyplot as plt
+        beta_start = 1e-4
+        beta_end = 0.02
+        n_steps = 1000
+        betas = torch.linspace(beta_start, beta_end, n_steps)
+
+        from torchvision.utils import save_image
+        for t in range(n_steps):
+            if t % 50 == 0:
+                plt.imshow(((xt * 0.5) + 0.5).clamp(0, 1).moveaxis(0, 2))
+                save_image(((xt * 0.5) + 0.5).clamp(0, 1), f'{t}.jpg')
+                plt.title('Image')
+                plt.show()
+
+            noise = torch.randn_like(xt)
+            xt = torch.sqrt(1 - betas[t]) * xt + torch.sqrt(betas[t]) * noise
 
     main()

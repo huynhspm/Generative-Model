@@ -29,7 +29,7 @@ class CVCClinicDataset(Dataset):
         image = imageio.v2.imread(img_path)
         mask = imageio.v2.imread(mask_path, pilmode='L')
 
-        return image, {'image': mask}
+        return mask, {'image': image}
 
 
 if __name__ == "__main__":

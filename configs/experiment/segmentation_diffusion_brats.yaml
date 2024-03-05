@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=segmentation_diffusion_cvc_clinic
+# python train.py experiment=segmentation_diffusion_brats
 
 defaults:
   - override /data: brats.yaml
@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_diffusion"
+task_name: "train_segmentation_diffusion"
 
 trainer:
   max_epochs: 2000
@@ -32,11 +32,12 @@ model:
     denoise_net:
       channel_multipliers: [1, 2, 4, 4]
       d_cond_image: 4
+    classifier_free: false
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "diffusion"
+    project: "segmentation-diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

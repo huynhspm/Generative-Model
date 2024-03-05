@@ -50,11 +50,11 @@ class SABlock(nn.Module):
 
     def forward(self, x: torch.Tensor, cond=None):
         batch_size, channels, size, _ = x.shape
-        x = x.view(batch_size, channels, -1).swapaxes(1, 2)
+        x = x.view(batch_size, channels, -1).swapaxes(1, 2).contiguous()
         x = self.sa(x)
-        x = x.swapaxes(2, 1).view(batch_size, channels, size, size)
+        x = x.swapaxes(2, 1).contiguous().view(batch_size, channels, size,
+                                               size)
         # because: Warning: Grad strides do not match bucket view strides
-        x = x.contiguous()
         return x
 
 
@@ -83,9 +83,6 @@ class CABlock(nn.Module):
             x = ca(x, cond)
 
         x = x.swapaxes(2, 1).view(batch_size, channels, size, size)
-
-        # because: Warning: Grad strides do not match bucket view strides
-        x = x.contiguous()
 
         return x
 

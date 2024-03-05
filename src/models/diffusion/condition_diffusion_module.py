@@ -45,7 +45,11 @@ if __name__ == "__main__":
         cfg['net']['sampler']['n_train_steps'] = 1000
         cfg['net']['img_dims'] = [1, 32, 32]
         cfg['net']['denoise_net']['d_cond_image'] = 1
-        cfg['net']['denoise_net']['n_classes'] = 2
+        cfg['net']['label_embedder'] = {
+            '_target_': 'src.models.components.embeds.LabelEmbedder',
+            'n_classes': 2,
+            'd_embed': 256,
+        }
         # print(cfg)
 
         condition_diffusion_module: ConditionDiffusionModule = hydra.utils.instantiate(
@@ -54,7 +58,7 @@ if __name__ == "__main__":
         x = torch.randn(2, 1, 32, 32)
         cond = {
             'label':
-            torch.randint(0, cfg['net']['denoise_net']['n_classes'], (2, )),
+            torch.randint(0, cfg['net']['label_embedder']['n_classes'], (2, )),
             'image':
             torch.rand_like(x),
         }

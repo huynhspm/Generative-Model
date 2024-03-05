@@ -32,7 +32,6 @@ net:
     attention_levels: [1, 2] # the levels at which attention should be performed
     n_attention_heads: 4 # the number of attention heads
     n_attention_layers: 1 # the number of attention layers
-    n_classes: null # the number of classes (if use label condition)
     d_cond_image: null # the number of dimension of image condition
     d_cond_text: null # the number of dimension of text condition
     drop_rate: 0 # drop out layer
@@ -41,3 +40,9 @@ net:
     _target_: src.models.diffusion.sampler.DDIMSampler
     n_train_steps: ${model.net.n_train_steps}
     beta_schedule: linear
+
+  label_embedder: null
+  image_embedder: null
+  text_embedder: null
+  gif_frequency: 20
+  classifier_free: false

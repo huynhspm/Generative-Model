@@ -1,4 +1,5 @@
 import torch
+import numpy as np
 import os.path as osp
 from torch.utils.data import Dataset, ConcatDataset
 from torchvision.datasets import CIFAR10
@@ -25,7 +26,7 @@ class Cifar10Dataset(Dataset):
         return len(self.dataset)
 
     def __getitem__(self, index) -> torch.Tensor:
-        return self.dataset[index][0], {'label': self.dataset[index][1]}
+        return np.array(self.dataset[index][0]), {'label': self.dataset[index][1]}
 
 
 if __name__ == "__main__":

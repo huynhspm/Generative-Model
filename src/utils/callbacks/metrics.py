@@ -9,7 +9,7 @@ from torchmetrics.image import (StructuralSimilarityIndexMeasure,
                                 PeakSignalNoiseRatio, FrechetInceptionDistance,
                                 InceptionScore)
 
-from torchmetrics import Dice, JaccardIndex
+from torchmetrics import Dice, JaccardIndex, MeanMetric
 
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
@@ -17,15 +17,20 @@ from src.models.vae import VAEModule
 
 class Metrics(Callback):
 
-    def __init__(self,
-                 ssim: StructuralSimilarityIndexMeasure | None = None,
-                 psnr: PeakSignalNoiseRatio | None = None,
-                 fid: FrechetInceptionDistance | None = None,
-                 IS: InceptionScore | None = None,
-                 dice: Dice | None = None,
-                 iou: JaccardIndex | None = None,
-                 mean: float = 0.5,
-                 std: float = 0.5):
+    def __init__(
+        self,
+        ssim: StructuralSimilarityIndexMeasure | None = None,
+        psnr: PeakSignalNoiseRatio | None = None,
+        fid: FrechetInceptionDistance | None = None,
+        IS: InceptionScore | None = None,
+        dice: Dice | None = None,
+        iou: JaccardIndex | None = None,
+        mean_variance: MeanMetric | None = None,
+        mean_boundary_variance: MeanMetric | None = None,
+        mean: float = 0.5,
+        std: float = 0.5,
+        n_ensemble: int = 1,
+    ):
         """_summary_
 
         Args:
@@ -35,8 +40,10 @@ class Metrics(Callback):
             IS (InceptionScore | None, optional): metrics for generation task (not good - weight of inception-v3). Defaults to None.
             dice (Dice | None, optional): metrics for segmentation task. Defaults to None.
             iou (JaccardIndex | None, optional): metrics for segmentation task. Defaults to None.
+            mean_variance
             mean (float, optional): to convert image into (0, 1). Defaults to 0.5.
             std (float, optional): to convert image into (0, 1). Defaults to 0.5.
+            n_ensemble
         """
 
         self.ssim = ssim
@@ -45,9 +52,12 @@ class Metrics(Callback):
         self.IS = IS
         self.dice = dice
         self.iou = iou
+        self.mean_variance = mean_variance
+        self.mean_boundary_variance = mean_boundary_variance
 
         self.mean = mean
         self.std = std
+        self.n_ensemble = n_ensemble
 
     # def on_train_epoch_start(self, trainer: Trainer,
     #                          pl_module: LightningModule) -> None:
@@ -99,6 +109,7 @@ class Metrics(Callback):
                    pl_module: LightningModule,
                    reals: Tensor | None = None,
                    conds: Dict[str, Tensor] = None):
+
         if isinstance(pl_module, VAEModule):
             if pl_module.use_ema:
                 with pl_module.ema_scope():
@@ -109,16 +120,35 @@ class Metrics(Callback):
             if not isinstance(pl_module, ConditionDiffusionModule):
                 conds = None
 
-            if pl_module.use_ema:
-                with pl_module.ema_scope():
-                    samples = pl_module.net.sample(num_sample=reals.shape[0],
+            # auto use ema
+            with pl_module.ema_scope():
+                fakes = []
+                b, c, w, h = reals.shape
+                for _ in range(self.n_ensemble):
+                    samples = pl_module.net.sample(num_sample=b,
                                                    device=pl_module.device,
-                                                   cond=conds)
-            else:
-                samples = pl_module.net.sample(num_sample=reals.shape[0],
-                                               device=pl_module.device,
-                                               cond=conds)
-            fakes = samples[-1]
+                                                   cond=conds.copy())
+                    fakes.append(samples[-1])
+            fakes = torch.cat(fakes, dim=0)
+            fakes = fakes.reshape(self.n_ensemble, b, c, w, h)
+            variance = fakes.var(dim=0)
+
+            if self.mean_variance is not None:
+                self.mean_variance.to(pl_module.device)
+                self.mean_variance.update(variance.mean())
+                self.mean_variance.to('cpu')
+
+            if self.mean_boundary_variance is not None:
+                threshold= 0.05
+                ids = variance > threshold
+                boundary_variance = (variance * ids).sum(
+                    dim=[1, 2, 3]) / ids.sum(dim=[1, 2, 3])
+                self.mean_boundary_variance.to(pl_module.device)
+                self.mean_boundary_variance.update(boundary_variance)
+                self.mean_boundary_variance.to('cpu')
+
+            fakes = fakes.mean(dim=0)
+
         else:
             raise NotImplementedError('this module is not Implemented')
 
@@ -142,6 +172,12 @@ class Metrics(Callback):
 
         if self.iou is not None:
             self.iou.reset()
+
+        if self.mean_variance is not None:
+            self.mean_variance.reset()
+
+        if self.mean_boundary_variance is not None:
+            self.mean_boundary_variance.reset()
 
     def update_metrics(self, reals: Tensor, fakes: Tensor,
                        device: torch.device):
@@ -196,6 +232,27 @@ class Metrics(Callback):
             self.IS.to('cpu')
 
     def log_metrics(self, pl_module: LightningModule, mode: str):
+
+        if self.mean_variance is not None:
+            self.mean_variance.to(pl_module.device)
+            pl_module.log(mode + '/mean_variance',
+                          self.mean_variance.compute(),
+                          on_step=False,
+                          on_epoch=True,
+                          prog_bar=False,
+                          sync_dist=True)
+            self.mean_variance.to('cpu')
+
+        if self.mean_boundary_variance is not None:
+            self.mean_boundary_variance.to(pl_module.device)
+            pl_module.log(mode + '/mean_boundary_variance',
+                          self.mean_boundary_variance.compute(),
+                          on_step=False,
+                          on_epoch=True,
+                          prog_bar=False,
+                          sync_dist=True)
+            self.mean_boundary_variance.to('cpu')
+
         if self.ssim is not None:
             self.ssim.to(pl_module.device)
             pl_module.log(mode + '/ssim',

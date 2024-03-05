@@ -22,19 +22,22 @@ class StableDiffusionModel(ConditionDiffusionModel):
         denoise_net: UNet,
         sampler: BaseSampler,
         autoencoder_weight_path: str,
+        label_embedder: torch.nn.Module = None,
         image_embedder: torch.nn.Module = None,
         text_embedder: torch.nn.Module = None,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
         gif_frequency: int = 20,
         latent_scaling_factor: float = 1.0,
+        classifier_free: bool = False,
     ) -> None:
         """_summary_
 
         Args:
-            autoencoder_weight_path (str): _description_
             denoise_net (UNet): model to learn noise
             sampler (BaseSampler): mampler for process with image in diffusion
+            autoencoder_weight_path (str): _description_
+            label_embedder (torch.nn.Module, optional): _description_. Defaults to None.
             image_embedder (torch.nn.Module, optional): _description_. Defaults to None.
             text_embedder (torch.nn.Module, optional): _description_. Defaults to None.
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
@@ -43,8 +46,9 @@ class StableDiffusionModel(ConditionDiffusionModel):
             latent_scaling_factor (float, optional): _description_. Defaults to 1.0.
         """
 
-        super().__init__(denoise_net, image_embedder, text_embedder, sampler,
-                         n_train_steps, img_dims, gif_frequency)
+        super().__init__(denoise_net, sampler, label_embedder, image_embedder,
+                         text_embedder, n_train_steps, img_dims, gif_frequency,
+                         classifier_free)
         assert autoencoder_weight_path is not None, "autoencoder_weight_path must not be None"
         self.autoencoder_module: VAEModule = VAEModule.load_from_checkpoint(
             autoencoder_weight_path)
@@ -135,40 +139,11 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="stable_diffusion_model.yaml")
     def main(cfg: DictConfig):
-        cfg['n_steps'] = 100
-        cfg['img_dims'] = [1, 32, 32]
-        cfg['denoise_net']['d_cond'] = 256
-        cfg['cond_net']['n_classes'] = 2
-        print(cfg)
+        cfg['n_train_steps'] = 1000
+        cfg['sampler']['n_train_steps'] = 1000
+        # print(cfg)
 
-        condition_diffusion_model: StableDiffusionModel = hydra.utils.instantiate(
+        stable_diffusion_model: StableDiffusionModel = hydra.utils.instantiate(
             cfg)
-
-        x = torch.randn(2, 1, 32, 32)
-        t = torch.randint(0, 100, (2, ))
-        cond = torch.randint(0, 2, (2, ))
-
-        print('***** q_sample *****')
-        print('Input:', x.shape)
-        targets, preds = condition_diffusion_model.get_q_sample(x, cond=cond)
-        print('Output:', targets.shape, preds.shape)
-
-        print('-' * 60)
-
-        print('***** p_sample *****')
-        t = Tensor([2]).to(torch.int64)
-        images = condition_diffusion_model.get_p_sample(num_sample=2,
-                                                        cond=cond,
-                                                        prog_bar=True)
-        print(len(images), images[0].shape)
-        # print(latent_diffusion_model.denoise_sample(x, t).shape)
-
-        print('-' * 60)
-
-        out = condition_diffusion_model(
-            x, t, cond=condition_diffusion_model.get_condition_embedding(cond))
-        print('***** Condition_Diffusion_Model *****')
-        print('Input:', x.shape)
-        print('Output:', out.shape)
 
     main()

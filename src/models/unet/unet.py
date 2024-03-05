@@ -9,7 +9,7 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.components.blocks import init_block, get_all_blocks
 from src.models.components.attentions import init_attention, get_all_attentions
-from src.models.components.embeds import TimeEmbedding, LabelEmbedding
+from src.models.components.embeds import TimeEmbedding
 from src.models.components.up_down import DownSample, UpSample
 
 
@@ -28,7 +28,6 @@ class UNet(nn.Module):
                  attention_levels: List[int] = [1, 2],
                  n_attention_heads: int = 4,
                  n_attention_layers: int = 1,
-                 n_classes: int = None,
                  d_cond_image: int = None,
                  d_cond_text: int = None,
                  drop_rate: float = 0.) -> None:
@@ -44,7 +43,6 @@ class UNet(nn.Module):
             attention_levels (List[int], optional): the levels at which attention should be performed. Defaults to [1, 2].
             n_attention_heads (int, optional): the number of attention heads. Defaults to 4.
             n_attention_layers (int, optional): the number of attention layers. Defaults to 1.
-            n_classes (int, optional): the number of classes. Defaults to None.
             d_cond_image (int, optional): the number of dimension of image condition. Defaults to None.
             d_cond_text (int, optional): the number of dimension of text condition. Defaults to None.
             drop_rate (float, optional): percentage of dropout. Defaults to 0..
@@ -52,17 +50,12 @@ class UNet(nn.Module):
         super().__init__()
 
         self.base_channels = channels
-        self.n_classes = n_classes
 
         # size time embeddings
         d_time_emb = channels * channel_multipliers[-1]
 
         # layer for time embeddings
         self.time_embed = TimeEmbedding(channels, d_time_emb)
-
-        if n_classes is not None:
-            # layer for label embeddings
-            self.label_embed = LabelEmbedding(n_classes, d_embed=d_time_emb)
 
         # number of levels (downSample and upSample)
         levels = len(channel_multipliers)
@@ -213,13 +206,9 @@ class UNet(nn.Module):
         text_embed = None
 
         if cond is not None:
-            assert ('label' in cond.keys()) == (
-                self.n_classes is not None
-            ), "must specify label if and only if the model is class-conditional"
-
-            if self.n_classes is not None:
+            if 'label' in cond.keys():
                 assert cond['label'].shape[0] == x.shape[0], 'shape not match'
-                t_emb = t_emb + self.label_embed(cond['label'])
+                t_emb = t_emb + cond['label']
 
             if 'image' in cond.keys():
                 assert cond['image'].shape[0] == x.shape[0], 'shape not match'
@@ -295,13 +284,12 @@ if __name__ == "__main__":
 
         print('-' * 60)
 
-        cfg['n_classes'] = 2
         cfg['d_cond_image'] = 1
         # print(cfg)
 
         cond_unet: UNet = hydra.utils.instantiate(cfg)
         cond = {
-            'label': torch.randint(0, cfg['n_classes'], (2, )),
+            'label': torch.randn(2, 256),
             'image': torch.rand_like(x),
         }
 

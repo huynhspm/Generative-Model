@@ -18,14 +18,15 @@ class LatentDiffusionModel(DiffusionModel):
     """
 
     def __init__(
-            self,
-            autoencoder_weight_path: str,
-            denoise_net: UNet,
-            sampler: BaseSampler,
-            n_train_steps: int = 1000,
-            img_dims: Tuple[int, int, int] = [1, 32, 32],
-            gif_frequency: int = 20,
-            latent_scaling_factor: float = 1.0,  # 0.3643
+        self,
+        autoencoder_weight_path: str,
+        denoise_net: UNet,
+        sampler: BaseSampler,
+        n_train_steps: int = 1000,
+        img_dims: Tuple[int, int, int] = [1, 32, 32],
+        gif_frequency: int = 20,
+        latent_scaling_factor: float = 1.0,  # 0.3643
+        classifier_free: bool = False,
     ) -> None:
         """_summary_
 
@@ -40,7 +41,7 @@ class LatentDiffusionModel(DiffusionModel):
         """
 
         super().__init__(denoise_net, sampler, n_train_steps, img_dims,
-                         gif_frequency)
+                         gif_frequency, classifier_free)
         assert autoencoder_weight_path is not None, "autoencoder_weight_path must not be None"
         self.autoencoder_module: VAEModule = VAEModule.load_from_checkpoint(
             autoencoder_weight_path)
@@ -114,7 +115,7 @@ class LatentDiffusionModel(DiffusionModel):
         Returns:
             List[Tensor]: _description_
         """
-        
+
         z_samples = super().sample(xt, sample_steps, cond, num_sample, noise,
                                    repeat_noise, device, prog_bar)
         return [self.autoencoder_decode(z) for z in z_samples]

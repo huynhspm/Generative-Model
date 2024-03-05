@@ -12,3 +12,4 @@ num_workers: 0
 pin_memory: True
 dataset_name: edge_coco
 n_classes: 14
+image_size: 64

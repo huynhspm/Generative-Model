@@ -12,3 +12,4 @@ num_workers: 0
 pin_memory: True
 dataset_name: cvc_clinic
 n_classes: -1
+image_size: 256

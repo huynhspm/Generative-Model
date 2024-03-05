@@ -1,12 +1,12 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=stable_diffusion_afhq
+# python train.py experiment=vq_vae_isic_mask
 
 defaults:
-  - override /data: afhq.yaml
-  - override /model: diffusion/stable_diffusion_module.yaml
-  - override /callbacks: diffusion.yaml
+  - override /data: isic.yaml
+  - override /model: vae/vq_vae_module.yaml
+  - override /callbacks: vae.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
@@ -15,36 +15,32 @@ defaults:
 
 seed: 12345
 
-task_name: "train_diffusion"
+task_name: "train_vae"
 
 trainer:
-  max_epochs: 2000
+  max_epochs: 50
   devices: 1
   check_val_every_n_epoch: 5
-  gradient_clip_val: 1.0
 
 data:
   batch_size: 8
-  num_workers: 20
+  num_workers: 10
+  image_size: 256
 
 model:
-  optimizer:
-    lr: 2.0e-05
   net:
+    # encode 1x256x256 to 1x64x64
     img_dims:
-      - 3
-      - 32
-      - 32
-    denoise_net:
-      channels: 128
-      n_layer_blocks: 2
-      channel_multipliers: [1, 2, 4, 4]
-    autoencoder_weight_path: null
+      - 1
+      - ${data.transform_val.transforms[0].height}
+      - ${data.transform_val.transforms[0].width}
+    z_channels: 1
+    channels: 64
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "diffusion"
+    project: "vae"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
@@ -55,4 +51,12 @@ callbacks:
   gen_sample:
     grid_shape: [5, 5]
   metrics:
-    IS: null
+    dice:
+      _target_: torchmetrics.Dice
+      threshold: 0.5
+      average: micro
+    iou:
+      _target_: torchmetrics.JaccardIndex
+      threshold: 0.5
+      average: micro
+      task: binary

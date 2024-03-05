@@ -1,6 +1,7 @@
 from typing import Tuple, List, Dict
 
 import torch
+import random
 from torch import Tensor
 import pyrootutils
 import torch.nn as nn
@@ -11,6 +12,10 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 from src.models.unet import UNet
 from src.models.diffusion.sampler import BaseSampler
 from src.models.diffusion.sampler import noise_like
+
+
+def prob_cond(cond: Tensor, keep_cond: bool = False):
+    return cond * int(keep_cond)
 
 
 class DiffusionModel(nn.Module):
@@ -25,6 +30,7 @@ class DiffusionModel(nn.Module):
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
         gif_frequency: int = 20,
+        classifier_free: bool = False,
     ) -> None:
         """_summary_
 
@@ -34,6 +40,7 @@ class DiffusionModel(nn.Module):
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
             img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
             gif_frequency (int, optional): _description_. Defaults to 20.
+            classifier_free (bool, optional): _description_. Defaults to False.
         """
         super().__init__()
 
@@ -42,6 +49,7 @@ class DiffusionModel(nn.Module):
         self.denoise_net = denoise_net
         self.sampler = sampler
         self.gif_frequency = gif_frequency
+        self.classifier_free = classifier_free
 
     def forward(
         self,
@@ -84,6 +92,14 @@ class DiffusionModel(nn.Module):
 
         # diffusion forward: add noise to origin image
         xt = self.sampler.step(x0, sample_steps, noise)
+
+        # for classifier-free
+        if self.classifier_free:
+            assert cond is not None, "use classifier free if and only if this model is conditional-model"
+            prob_keep_cond = 0.5
+            keep_cond = random.uniform(0, 1) >= prob_keep_cond
+            for key in cond.keys():
+                cond[key] = prob_cond(cond=cond[key], keep_cond=keep_cond)
 
         # noise prediction
         noise_pred = self.denoise_net(x=xt, time_steps=sample_steps, cond=cond)
@@ -136,12 +152,33 @@ class DiffusionModel(nn.Module):
                 0], 'batch of sample_steps and xt not match'
             sample_steps = tqdm(sample_steps) if prog_bar else sample_steps
 
+        # for classifier-free
+        if self.classifier_free:
+            batch = xt.shape[0]
+            for key in cond.keys():
+                cond[key] = torch.cat(
+                    (prob_cond(cond=cond[key], keep_cond=True),
+                     prob_cond(cond=cond[key], keep_cond=False)),
+                    dim=0)
+
         for i, t in enumerate(sample_steps):
+            if self.classifier_free:
+                xt = torch.cat((xt, xt), dim=0)
+
             t = torch.full((xt.shape[0], ),
                            t,
                            device=device,
                            dtype=torch.int64)
+
             model_output = self.denoise_net(x=xt, time_steps=t, cond=cond)
+
+            if self.classifier_free:
+                w = 3.0
+                model_output = (
+                    1 + w) * model_output[:batch] - w * model_output[batch:]
+                t = t[:batch]
+                xt = xt[:batch]
+
             xt = self.sampler.reverse_step(model_output, t, xt, noise,
                                            repeat_noise)
 
@@ -180,7 +217,7 @@ if __name__ == "__main__":
         print('=' * 15, ' forward process ', '=' * 15)
         print('Input:', x.shape)
         xt = diffusion_model.sampler.step(x, t)
-        pred, target = diffusion_model(x, )  # with given t
+        pred, target = diffusion_model(x, t)  # with given t
         pred, target = diffusion_model(x)  # without given t
         print('xt:', xt.shape)
         print('Prediction:', pred.shape)

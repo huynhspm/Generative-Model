@@ -72,13 +72,13 @@ class SpatialTransformer(nn.Module):
         x = self.proj_in(x)
         # Transpose and reshape from `[batch_size, channels, height, width]`
         # to `[batch_size, height * width, channels]`
-        x = x.permute(0, 2, 3, 1).view(b, h * w, c)
+        x = x.permute(0, 2, 3, 1).view(b, h * w, c).contiguous()
         # Apply the transformer layers
         for block in self.transformer_blocks:
             x = block(x)
         # Reshape and transpose from `[batch_size, height * width, channels]`
         # to `[batch_size, channels, height, width]`
-        x = x.view(b, h, w, c).permute(0, 3, 1, 2)
+        x = x.view(b, h, w, c).permute(0, 3, 1, 2).contiguous()
         # Final $1 \times 1$ convolution
         x = self.proj_out(x)
         # Add residual
@@ -259,7 +259,7 @@ class CrossAttention(nn.Module):
         v = v.view(*v.shape[:2], self.n_heads, -1)
 
         # Calculate attention $\frac{Q K^\top}{\sqrt{d_{key}}}$
-        attn = torch.einsum('bihd,bjhd->bhij', q, k) * self.scale
+        attn = torch.einsum('bihd,bjhd->bhij', q, k).contiguous() * self.scale
 
         # Compute softmax
         # $$\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)$$
@@ -272,7 +272,7 @@ class CrossAttention(nn.Module):
 
         # Compute attention output
         # $$\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)V$$
-        out = torch.einsum('bhij,bjhd->bihd', attn, v)
+        out = torch.einsum('bhij,bjhd->bihd', attn, v).contiguous()
         # Reshape to `[batch_size, height * width, n_heads * d_head]`
         out = out.reshape(*out.shape[:2], -1)
         # Map to `[batch_size, height * width, d_model]` with a linear layer

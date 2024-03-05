@@ -1,16 +1,10 @@
 defaults:
   - diffusion_model
-  - image_embedder: null
-  - text_embedder: null
+  # - label_embedder: cond_net/label.yaml
+  # - image_embedder: cond_net/image.yaml
+  # - text_embedder: cond_net/text.yaml
 
 _target_: src.models.diffusion.net.ConditionDiffusionModel
-
-denoise_net:
-  # cross-attention between vector condition embedding and image
-  # so use only embedder network is not None
-  # attention: CrossAttention # name of attentions for each level
-
-  # n_classes: ${data.n_classes} # the number of classes (if use label condition)
-
-  # d_cond_image: ${model.net.image_embedder.d_cond} # the number of dimension of image condition
-  # d_cond_text: ${model.net.text_embedder.d_cond} # the number of dimension of text condition
+label_embedder: null
+image_embedder: null
+text_embedder: null

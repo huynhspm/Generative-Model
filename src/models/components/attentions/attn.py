@@ -24,16 +24,16 @@ class AttentionBlock(nn.Module):
         k = self.proj_k(h)
         v = self.proj_v(h)
 
-        q = q.permute(0, 2, 3, 1).view(B, H * W, C)
+        q = q.permute(0, 2, 3, 1).contiguous().view(B, H * W, C)
         k = k.view(B, C, H * W)
         w = torch.bmm(q, k) * (int(C)**(-0.5))
         assert list(w.shape) == [B, H * W, H * W]
         w = F.softmax(w, dim=-1)
 
-        v = v.permute(0, 2, 3, 1).view(B, H * W, C)
+        v = v.permute(0, 2, 3, 1).contiguous().view(B, H * W, C)
         h = torch.bmm(w, v)
         assert list(h.shape) == [B, H * W, C]
-        h = h.view(B, H, W, C).permute(0, 3, 1, 2)
+        h = h.view(B, H, W, C).permute(0, 3, 1, 2).contiguous()
         h = self.proj(h)
 
         return x + h

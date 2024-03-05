@@ -53,14 +53,11 @@ class AttnBlock(nn.Module):
         v = v.view(b, c, h * w)
 
         # Compute $\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)$
-        attn = torch.einsum('bci, bcj->bij', q, k) * self.scale
+        attn = torch.einsum('bci, bcj->bij', q, k).contiguous() * self.scale
         attn = F.softmax(attn, dim=2)
 
         # Compute $\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)V$
-        out = torch.einsum('bij, bcj->bci', attn, v)
-
-        # because: Warning: Grad strides do not match bucket view strides
-        out = out.contiguous()
+        out = torch.einsum('bij, bcj->bci', attn, v).contiguous()
 
         # Reshape back to `[batch_size, channels, height, width]`
         out = out.view(b, c, h, w)

@@ -40,3 +40,5 @@ net:
     _target_: src.models.diffusion.sampler.DDIMSampler
     n_train_steps: ${model.net.n_train_steps}
     beta_schedule: linear
+
+  classifier_free: false

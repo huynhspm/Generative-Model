@@ -1,5 +1,3 @@
-from .edge import EdgeEmbedding
-from .label import LabelEmbedding
-from .mask import MaskEmbedding
-from .sketch import SketchEmbedding
+from .image import ImageEmbedder
+from .label import LabelEmbedder
 from .time import TimeEmbedding

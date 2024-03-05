@@ -9,3 +9,6 @@ img_dims:
   - ${model.net.denoise_net.img_channels}
   - ${data.transform_val.transforms[0].height}
   - ${data.transform_val.transforms[0].width}
+
+gif_frequency: 20
+classifier_free: false

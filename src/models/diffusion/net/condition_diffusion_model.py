@@ -20,17 +20,20 @@ class ConditionDiffusionModel(DiffusionModel):
         self,
         denoise_net: UNet,
         sampler: BaseSampler,
+        label_embedder: torch.nn.Module = None,
         image_embedder: torch.nn.Module = None,
         text_embedder: torch.nn.Module = None,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
         gif_frequency: int = 20,
+        classifier_free: bool = False,
     ) -> None:
         """_summary_
         
         Args:
             denoise_net (UNet): model to learn noise
             sampler (BaseSampler): mampler for process with image in diffusion
+            label_embedder (torch.nn.Module, optional): _description_. Defaults to None.
             image_embedder (torch.nn.Module, optional): _description_. Defaults to None.
             text_embedder (torch.nn.Module, optional): _description_. Defaults to None.
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
@@ -38,15 +41,40 @@ class ConditionDiffusionModel(DiffusionModel):
             gif_frequency (int, optional): _description_. Defaults to 20.
         """
         super().__init__(denoise_net, sampler, n_train_steps, img_dims,
-                         gif_frequency)
+                         gif_frequency, classifier_free)
+        self.label_embedder = label_embedder
         self.image_embedder = image_embedder
         self.text_embedder = text_embedder
+
+    def get_label_embedding(self, label: torch.Tensor):
+        return self.label_embedder(label)
 
     def get_image_embedding(self, image: torch.Tensor):
         return self.image_embedder(image)
 
     def get_text_embedding(self, text: torch.Tensor):
         return self.text_embedder(text)
+
+    def get_cond_embedding(self, cond: Dict[str, Tensor]):
+        if cond is not None:
+            if self.label_embedder is not None:
+                assert 'label' in cond.keys(
+                ), "must specify label if and only if this model is label-conditional"
+
+                cond['label'] = self.get_label_embedding(cond['label'])
+
+            if self.image_embedder is not None:
+                assert 'image' in cond.keys(
+                ), "must specify image if and only if this model is image-conditional"
+
+                cond['image'] = self.get_image_embedding(cond['image'])
+
+            if 'text' in cond.keys():
+                assert 'text' in cond.keys(
+                ), "must specify text if and only if this model is text-conditional"
+
+                cond['text'] = self.get_text_embedding(cond['text'])
+        return cond
 
     def forward(self,
                 x0: Tensor,
@@ -67,16 +95,8 @@ class ConditionDiffusionModel(DiffusionModel):
                 - target: noise is added to (x0 -> xt)
         """
 
-        if cond is not None:
-            if 'image' in cond.keys() and self.image_embedder is not None:
-                cond['image'] = self.get_image_embedding(cond['image'])
-
-            if 'text' in cond.keys():
-                assert ('text' in cond.keys()) == (self.text_embedder
-                                                   is not None)
-                cond['text'] = self.get_text_embedding(cond['text'])
-
-        return super().forward(x0, sample_steps, noise, cond)
+        cond_embedded = self.get_cond_embedding(cond)
+        return super().forward(x0, sample_steps, noise, cond_embedded)
 
     @torch.no_grad()
     def sample(self,
@@ -104,17 +124,9 @@ class ConditionDiffusionModel(DiffusionModel):
             List[Tensor]: _description_
         """
 
-        if cond is not None:
-            if 'image' in cond.keys() and self.image_embedder is not None:
-                cond['image'] = self.get_image_embedding(cond['image'])
-
-            if 'text' in cond.keys():
-                assert ('text' in cond.keys()) == (self.text_embedder
-                                                   is not None)
-                cond['text'] = self.get_text_embedding(cond['text'])
-
-        return super().sample(xt, sample_steps, cond, num_sample, noise,
-                              repeat_noise, device, prog_bar)
+        cond_embedded = self.get_cond_embedding(cond)
+        return super().sample(xt, sample_steps, cond_embedded, num_sample,
+                              noise, repeat_noise, device, prog_bar)
 
 
 if __name__ == "__main__":
@@ -134,7 +146,11 @@ if __name__ == "__main__":
         cfg['img_dims'] = [1, 32, 32]
         cfg['sampler']['n_train_steps'] = 1000
         cfg['denoise_net']['d_cond_image'] = 1
-        cfg['denoise_net']['n_classes'] = 2
+        cfg['label_embedder'] = {
+            '_target_': 'src.models.components.embeds.LabelEmbedder',
+            'n_classes': 2,
+            'd_embed': 256,
+        }
         # print(cfg)
 
         condition_diffusion_model: ConditionDiffusionModel = hydra.utils.instantiate(
@@ -143,7 +159,8 @@ if __name__ == "__main__":
         x = torch.randn(2, 1, 32, 32)
         t = torch.randint(0, cfg['n_train_steps'], (2, ))
         cond = {
-            'label': torch.randint(0, cfg['denoise_net']['n_classes'], (2, )),
+            'label': torch.randint(0, cfg['label_embedder']['n_classes'],
+                                   (2, )),
             'image': torch.rand_like(x),
         }
 
@@ -152,8 +169,10 @@ if __name__ == "__main__":
         print('=' * 15, ' forward process ', '=' * 15)
         print('Input:', x.shape)
         xt = condition_diffusion_model.sampler.step(x, t)
-        pred, target = condition_diffusion_model(x, cond=cond)
-        pred, target = condition_diffusion_model(x, cond=cond)
+        pred, target = condition_diffusion_model(
+            x, t, cond=cond.copy())  # with given t
+        pred, target = condition_diffusion_model(
+            x, cond=cond.copy())  # without given t
         print('xt:', xt.shape)
         print('Prediction:', pred.shape)
         print('Target:', target.shape)

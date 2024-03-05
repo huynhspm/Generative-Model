@@ -17,10 +17,12 @@ class GenSample(Callback):
         grid_shape: Tuple[int, int],
         mean: float,
         std: float,
+        n_ensemble: int = 1,
     ):
         self.grid_shape = grid_shape
         self.mean = mean
         self.std = std
+        self.n_ensemble = n_ensemble
         self.images = {
             'train': None,
             'val': None,
@@ -114,7 +116,7 @@ class GenSample(Callback):
                             mode=mode,
                             caption=['samples', 'recons_img', 'target'])
 
-            self.interpolation(pl_module, pl_module=pl_module, mode=mode)
+            self.interpolation(pl_module=pl_module, mode=mode)
 
         elif isinstance(pl_module, DiffusionModule):
             # checking before resume training
@@ -128,20 +130,29 @@ class GenSample(Callback):
                 for key in self.conds[mode].keys():
                     conds[key] = conds[key][:n_samples]
 
-                # check variance
-                if 'image' in conds.keys():
-
-                    self.compute_variance(pl_module, mode=mode, n_ensemble=5)
+            reals = self.images[mode][:n_samples]
 
             with pl_module.ema_scope():
-                samples = pl_module.net.sample(num_sample=n_samples,
-                                               device=pl_module.device,
-                                               cond=conds)
+                fakes = []
+                b, c, w, h = reals.shape
+                for i in range(self.n_ensemble):
+                    samples = pl_module.net.sample(num_sample=n_samples,
+                                                   device=pl_module.device,
+                                                   cond=conds.copy())
+                    fakes.append(samples[-1])
 
-            fakes = samples[-1]
+            fakes = torch.cat(fakes, dim=0)
+            fakes = fakes.reshape(self.n_ensemble, b, c, w, h).moveaxis(0, 1)
+
+            # check variance
+            if isinstance(
+                    pl_module,
+                    ConditionDiffusionModule) and 'image' in conds.keys():
+                self.compute_variance(pl_module, reals.clone(), fakes.clone(),
+                                      mode)
+
+            fakes = fakes.mean(dim=1)
             fakes = (fakes * self.std + self.mean).clamp(0, 1)
-
-            reals = self.images[mode][:n_samples]
             reals = (reals * self.std + self.mean).clamp(0, 1)
 
             self.log_sample(
@@ -155,26 +166,9 @@ class GenSample(Callback):
 
             self.interpolation(pl_module, mode=mode)
 
-    def compute_variance(self,
-                         pl_module: ConditionDiffusionModule,
-                         mode: str,
-                         n_ensemble: int = 5):
-        reals = self.images[mode]
-        b, c, w, h = reals.shape
-
-        fakes = []
-        with pl_module.ema_scope():
-            # avoid out of memory
-            for i in range(n_ensemble):
-                samples = pl_module.net.sample(num_sample=b,
-                                               device=pl_module.device,
-                                               cond=self.conds[mode])
-                fakes.append(samples[-1])
-
-        fakes = torch.cat(fakes, dim=0)
-        fakes = (fakes * self.std + self.mean).clamp(0, 1)
-        reals = (reals * self.std + self.mean).clamp(0, 1)
-        fakes = fakes.reshape(n_ensemble, b, c, w, h).moveaxis(0, 1)
+    def compute_variance(self, pl_module: ConditionDiffusionModule,
+                         reals: Tensor, fakes: Tensor, mode: str):
+        _, c, w, h = reals.shape
         ensemble = fakes.mean(dim=1)
         variance = fakes.var(dim=1)
 
@@ -186,10 +180,9 @@ class GenSample(Callback):
                       prog_bar=False,
                       sync_dist=True)
 
-        if variance.shape[0] < 6: return
-
         # only log 6 images
         n_images = 6
+        if variance.shape[0] < n_images: return
 
         # log heatmap
         self.log_heatmap(variance, pl_module, mode, n_images)
@@ -226,16 +219,6 @@ class GenSample(Callback):
         pl_module.logger.log_image(key=mode + '/variance',
                                    images=images,
                                    caption=captions)
-
-        # log average variance on the boundary of image
-        ids = variance > 0.05
-        boundary_variance = (variance *
-                             ids).sum(dim=[1, 2, 3]) / ids.sum(dim=[1, 2, 3])
-
-        metrics = {}
-        for i in range(n_images):
-            metrics['i'] = boundary_variance[i]
-        pl_module.logger.log_metrics(metrics=metrics)
 
     def log_heatmap(self,
                     variance: Tensor,

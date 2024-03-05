@@ -34,6 +34,10 @@ model:
     denoise_net:
       n_layer_blocks: 2
       channel_multipliers: [1, 2, 4, 4]
+    label_embedder:
+      _target_: src.models.components.embeds.LabelEmbedder
+      n_classes: ${data.n_classes}
+      d_embed: 256 # = denoise_net.channels * channel_multipliers[-1]
 
 logger:
   wandb:
