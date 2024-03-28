@@ -6,7 +6,7 @@ defaults:
   - _self_
 
 data_dir: ${paths.data_dir}
-train_val_test_split: [512, 50, 50]
+train_val_test_split: [0.8, 0.1, 0.1]
 batch_size: 128
 num_workers: 0
 pin_memory: True

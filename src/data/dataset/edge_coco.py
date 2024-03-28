@@ -48,8 +48,7 @@ if __name__ == "__main__":
     label, edge = cond['image']
     print(image.shape, label, edge.shape)
 
-    import torch
-    print(torch.unique(torch.tensor(edge)))
+    print(np.unique(edge))
 
     import matplotlib.pyplot as plt
     plt.subplot(1, 2, 1)

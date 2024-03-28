@@ -1,5 +1,6 @@
 import glob
 import imageio
+import numpy as np
 import os.path as osp
 from torch.utils.data import Dataset
 
@@ -23,9 +24,8 @@ class CVCClinicDataset(Dataset):
 
     def __getitem__(self, index):
         img_path = self.img_paths[index]
-        mask_path = img_path.split('/')
-        mask_path[-2] = 'Ground_Truth'
-        mask_path = '/'.join(mask_path)
+        mask_path = img_path.replace('Original', 'Ground_Truth')
+
         image = imageio.v2.imread(img_path)
         mask = imageio.v2.imread(mask_path, pilmode='L')
 
@@ -35,17 +35,21 @@ class CVCClinicDataset(Dataset):
 if __name__ == "__main__":
     dataset = CVCClinicDataset(data_dir='data')
     print(len(dataset))
-    image, cond = dataset[0]
-    mask = cond['image']
-    print(image.shape, mask.shape)
 
-    import torch
-    print(torch.unique(torch.tensor(mask)))
+    mask, cond = dataset[0]
+    image = cond['image']
+
+    print(image.shape, image.dtype, type(image))
+    print(mask.shape, mask.dtype, type(image))
+
+    print(np.unique(mask))
 
     import matplotlib.pyplot as plt
+
     plt.subplot(1, 2, 1)
     plt.imshow(image)
     plt.title('Image')
+
     plt.subplot(1, 2, 2)
     plt.imshow(mask)
     plt.title('Mask')

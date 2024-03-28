@@ -6,7 +6,13 @@ defaults:
   - _self_
 
 data_dir: ${paths.data_dir}
-train_val_test_split: [1229, 25, 25]
+train_val_test_dir:
+  [
+    "ISIC2018_Task1-2_Training_Input",
+    "ISIC2018_Task1-2_Validation_Input",
+    "ISIC2018_Task1-2_Test_Input",
+  ]
+# train_val_test_split: [0.8, 0.1, 0.1]
 batch_size: 128
 num_workers: 0
 pin_memory: True

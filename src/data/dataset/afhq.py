@@ -14,7 +14,7 @@ class AFHQDataset(Dataset):
         super().__init__()
 
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
-        img_dir = [
+        img_dirs = [
             f"{self.dataset_dir}/train/cat/*.jpg",
             f"{self.dataset_dir}/train/dog/*.jpg",
             f"{self.dataset_dir}/train/wild/*.jpg",
@@ -23,9 +23,9 @@ class AFHQDataset(Dataset):
             f"{self.dataset_dir}/val/wild/*.jpg",
         ]
 
-        self.img_paths = glob.glob(img_dir[0]) + glob.glob(
-            img_dir[1]) + glob.glob(img_dir[2]) + glob.glob(
-                img_dir[3]) + glob.glob(img_dir[4]) + glob.glob(img_dir[5])
+        self.img_paths = [
+            img_path for img_dir in img_dirs for img_path in glob.glob(img_dir)
+        ]
 
     def prepare_data(self) -> None:
         pass

@@ -1,4 +1,3 @@
-import torch
 import numpy as np
 import os.path as osp
 from torch.utils.data import Dataset, ConcatDataset
@@ -25,7 +24,7 @@ class FashionDataset(Dataset):
     def __len__(self) -> int:
         return len(self.dataset)
 
-    def __getitem__(self, index) -> torch.Tensor:
+    def __getitem__(self, index):
         return np.array(self.dataset[index][0]), {
             'label': self.dataset[index][1]
         }

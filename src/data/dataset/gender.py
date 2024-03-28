@@ -14,7 +14,7 @@ class GenderDataset(Dataset):
         super().__init__()
 
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
-        img_dir = [
+        img_dirs = [
             f"{self.dataset_dir}/Test/Female/*.jpg",
             f"{self.dataset_dir}/Test/Male/*.jpg",
             f"{self.dataset_dir}/Validation/Female/*.jpg",
@@ -23,9 +23,9 @@ class GenderDataset(Dataset):
             f"{self.dataset_dir}/Train/Male/*.jpg"
         ]
 
-        self.img_paths = glob.glob(img_dir[0]) + glob.glob(
-            img_dir[1]) + glob.glob(img_dir[2]) + glob.glob(
-                img_dir[3]) + glob.glob(img_dir[4]) + glob.glob(img_dir[5])
+        self.img_paths = [
+            img_path for img_dir in img_dirs for img_path in glob.glob(img_dir)
+        ]
 
     def prepare_data(self) -> None:
         import opendatasets as od

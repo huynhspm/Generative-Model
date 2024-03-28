@@ -1,0 +1,16 @@
+_target_: src.data.DiffusionDataModule
+
+defaults:
+  - transform_train: lidc.yaml
+  - transform_val: lidc.yaml
+  - _self_
+
+data_dir: ${paths.data_dir}
+train_val_test_dir: ["Train", "Val", "Test"]
+# train_val_test_split: [0.8, 0.1, 0.1]
+batch_size: 128
+num_workers: 0
+pin_memory: True
+dataset_name: lidc
+n_classes: -1
+image_size: 128

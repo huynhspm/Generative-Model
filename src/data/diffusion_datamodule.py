@@ -27,15 +27,21 @@ class TransformDataset(Dataset):
 
     def __getitem__(self, idx):
         image, cond = self.dataset[idx]
+
         if cond is not None and 'image' in cond.keys():
-            if cond['image'].shape[0] == 4:
-                image = image.unsqueeze(0)
+            if 'masks' in cond.keys():
+                transformed = self.transform(image=image,
+                                             cond=cond['image'],
+                                             masks=cond['masks'])
+                image, cond['image'], cond['masks'] = transformed[
+                    "image"], transformed["cond"], transformed['masks']
             else:
                 transformed = self.transform(image=image, cond=cond['image'])
                 image, cond['image'] = transformed["image"], transformed[
                     "cond"]
         else:
             image = self.transform(image=image)["image"]
+
         return image, cond
 
 
@@ -69,6 +75,7 @@ class DiffusionDataModule(pl.LightningDataModule):
     def __init__(
         self,
         data_dir: str = "./data",
+        train_val_test_dir: Tuple[str, str, str] = None,
         train_val_test_split: Tuple[float, float, float]
         | Tuple[int, int, int] = (0.8, 0.1, 0.1),
         transform_train: Optional[Compose] = None,
@@ -124,25 +131,40 @@ class DiffusionDataModule(pl.LightningDataModule):
         """
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
-            dataset = init_dataset(self.hparams.dataset_name,
-                                   data_dir=self.hparams.data_dir)
+            if self.hparams.train_val_test_dir:
+                train_dir, val_dir, test_dir = self.hparams.train_val_test_dir
 
-            print('Dataset:', len(dataset))
-            self.data_train, self.data_val, self.data_test = random_split(
-                dataset=dataset,
-                lengths=self.hparams.train_val_test_split,
-                generator=torch.Generator().manual_seed(42),
-            )
+                self.data_train = init_dataset(self.hparams.dataset_name,
+                                               data_dir=self.hparams.data_dir,
+                                               train_val_test_dir=train_dir)
 
-            print('Train-Val-Test:', len(self.data_train), len(self.data_val),
-                  len(self.data_test))
-            self.data_train = TransformDataset(
-                dataset=self.data_train,
-                transform=self.hparams.transform_train)
-            self.data_val = TransformDataset(
-                dataset=self.data_val, transform=self.hparams.transform_val)
-            self.data_test = TransformDataset(
-                dataset=self.data_test, transform=self.hparams.transform_val)
+                self.data_val = init_dataset(self.hparams.dataset_name,
+                                             data_dir=self.hparams.data_dir,
+                                             train_val_test_dir=val_dir)
+
+                self.data_test = init_dataset(self.hparams.dataset_name,
+                                              data_dir=self.hparams.data_dir,
+                                              train_val_test_dir=test_dir)
+
+            else:
+                dataset = init_dataset(self.hparams.dataset_name,
+                                       data_dir=self.hparams.data_dir)
+
+                self.data_train, self.data_val, self.data_test = random_split(
+                    dataset=dataset,
+                    lengths=self.hparams.train_val_test_split,
+                    generator=torch.Generator().manual_seed(42),
+                )
+
+        self.data_train = TransformDataset(
+            dataset=self.data_train, transform=self.hparams.transform_train)
+        self.data_val = TransformDataset(dataset=self.data_val,
+                                         transform=self.hparams.transform_val)
+        self.data_test = TransformDataset(dataset=self.data_test,
+                                          transform=self.hparams.transform_val)
+
+        print('Train-Val-Test:', len(self.data_train), len(self.data_val),
+              len(self.data_test))
 
     def train_dataloader(self):
         return DataLoader(
@@ -159,7 +181,7 @@ class DiffusionDataModule(pl.LightningDataModule):
             batch_size=self.hparams.batch_size,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=False,
+            shuffle=True,
         )
 
     def test_dataloader(self):
@@ -195,7 +217,7 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="isic.yaml")
+                config_name="lidc.yaml")
     def main(cfg: DictConfig):
         print(cfg)
 
@@ -210,6 +232,7 @@ if __name__ == "__main__":
         image, cond = batch_image
         cond_label = cond['label'] if 'label' in cond.keys() else None
         cond_image = cond['image'] if 'image' in cond.keys() else None
+        masks = cond['masks'] if 'masks' in cond.keys() else None
 
         print('Image shape:', image.shape)
 
@@ -219,12 +242,13 @@ if __name__ == "__main__":
         if cond_image is not None:
             print('Cond image shape:', cond_image.shape)
 
-        visualize(image, cond_image, cond_label, save_img=False)
+        visualize(image, cond_image, cond_label, masks, save_img=False)
         # gen_noise_image(xt=cond_image[0])
 
     def visualize(image: Tensor,
                   cond_image: Tensor | None,
                   cond_label: Tensor | None,
+                  masks: Tensor | None,
                   save_img: bool = False):
         import matplotlib.pyplot as plt
         from torchvision.utils import make_grid, save_image
@@ -232,15 +256,11 @@ if __name__ == "__main__":
         mean = 0.5
         std = 0.5
         image = ((image * std + mean))
-        cond_image = ((cond_image * std + mean))
-
-        save_image(image[0], 'image.jpg')
-        save_image(cond_image[0], 'cond.jpg')
 
         n_image = 9
         n_row = 3
 
-        image = make_grid(image[:n_image], nrow=n_row)
+        image = make_grid(image[:n_image], nrow=n_row, pad_value=1)
 
         if cond_label is not None:
             print(cond_label[:n_image])
@@ -253,20 +273,83 @@ if __name__ == "__main__":
             plt.show()
         else:
             cond_image = ((cond_image * std + mean))
-            cond_image = make_grid(cond_image[:n_image], nrow=n_row)
+            cond_image = make_grid(cond_image[:n_image],
+                                   nrow=n_row,
+                                   pad_value=1)
+            # brats dataset
+            if cond_image.shape[0] == 4:
+                if save_img:
+                    save_image(cond_image[0:1], 't1.jpg')
+                    save_image(cond_image[1:2], 't1ce.jpg')
+                    save_image(cond_image[2:3], 't2.jpg')
+                    save_image(cond_image[3:4], 'flair.jpg')
+                    save_image(cond_image, 'cond.jpg')
 
-            if save_img:
-                save_image(image, 'image.jpg')
-                save_image(cond_image, 'cond.jpg')
+                plt.figure(figsize=(16, 8))
+                plt.subplot(1, 5, 1)
+                plt.imshow(cond_image[0:1].moveaxis(0, 2), cmap='gray')
+                plt.title('T1')
+                plt.subplot(1, 5, 2)
+                plt.imshow(cond_image[1:2].moveaxis(0, 2), cmap='gray')
+                plt.title('T1CE')
+                plt.subplot(1, 5, 3)
+                plt.imshow(cond_image[2:3].moveaxis(0, 2), cmap='gray')
+                plt.title('T2')
+                plt.subplot(1, 5, 4)
+                plt.imshow(cond_image[3:4].moveaxis(0, 2), cmap='gray')
+                plt.title('FLAIR')
+                plt.subplot(1, 5, 5)
+                plt.imshow(image.moveaxis(0, 2), cmap='gray')
+                plt.title('Mask')
+                plt.show()
 
-            plt.figure(figsize=(16, 8))
-            plt.subplot(1, 2, 1)
-            plt.imshow(image.moveaxis(0, 2))
-            plt.title('Image')
-            plt.subplot(1, 2, 2)
-            plt.imshow(cond_image.moveaxis(0, 2))
-            plt.title('Condition')
-            plt.show()
+            # lidc dataset
+            elif masks is not None:
+                masks = ((masks * std + mean))
+                masks = make_grid(masks[:n_image], nrow=n_row, pad_value=1)
+
+                if save_img:
+                    save_image(image, 'image.jpg')
+                    save_image(cond_image, 'cond.jpg')
+                    save_image(masks[0:1], 'mask0.jpg')
+                    save_image(masks[1:2], 'mask1.jpg')
+                    save_image(masks[2:3], 'mask2.jpg')
+                    save_image(masks[3:4], 'mask3.jpg')
+
+                plt.figure(figsize=(16, 8))
+                plt.subplot(2, 3, 1)
+                plt.imshow(image.moveaxis(0, 2))
+                plt.title('Image')
+                plt.subplot(2, 3, 2)
+                plt.imshow(cond_image.moveaxis(0, 2))
+                plt.title('Condition')
+                plt.subplot(2, 3, 3)
+                plt.imshow(masks[0:1].moveaxis(0, 2))
+                plt.title('Mask_0')
+                plt.subplot(2, 3, 4)
+                plt.imshow(masks[1:2].moveaxis(0, 2))
+                plt.title('Mask_1')
+                plt.subplot(2, 3, 5)
+                plt.imshow(masks[2:3].moveaxis(0, 2))
+                plt.title('Mask_2')
+                plt.subplot(2, 3, 6)
+                plt.imshow(masks[3:4].moveaxis(0, 2))
+                plt.title('Mask_3')
+                plt.show()
+
+            else:
+                if save_img:
+                    save_image(image, 'image.jpg')
+                    save_image(cond_image, 'cond.jpg')
+
+                plt.figure(figsize=(16, 8))
+                plt.subplot(1, 2, 1)
+                plt.imshow(image.moveaxis(0, 2))
+                plt.title('Image')
+                plt.subplot(1, 2, 2)
+                plt.imshow(cond_image.moveaxis(0, 2))
+                plt.title('Condition')
+                plt.show()
 
     def gen_noise_image(xt):
 

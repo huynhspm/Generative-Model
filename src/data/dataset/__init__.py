@@ -10,6 +10,7 @@ from .ffhq import FFHQDataset
 from .gender import GenderDataset
 from .imagenet import ImageNetDataset
 from .isic import ISICDataset
+from .lidc import LIDCDataset
 from .mnist import MnistDataset
 from .sketch_celeba import SketchCelebADataset
 from .sketch_coco import SketchCOCODataset
@@ -27,6 +28,7 @@ __datasets = {
     'gender': GenderDataset,
     'imagenet': ImageNetDataset,
     'isic': ISICDataset,
+    'lidc': LIDCDataset,
     'mnist': MnistDataset,
     'sketch_celeba': SketchCelebADataset,
     'sketch_coco': SketchCOCODataset,
