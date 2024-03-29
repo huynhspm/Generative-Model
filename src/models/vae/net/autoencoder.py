@@ -8,7 +8,6 @@ import torch.nn.functional as F
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.vae.net import BaseVAE
-from src.models.vae.net.base import GaussianDistribution
 from src.models.components.up_down import Encoder, Decoder
 
 
@@ -19,22 +18,26 @@ class AutoEncoder(BaseVAE):
     This consists of the encoder and decoder modules.
     """
 
-    def __init__(
-        self,
-        img_dims: int,
-        z_channels: int = 32,
-        channels: int = 32,
-        block: str = 'Residual',
-        n_layer_blocks: int = 1,
-        channel_multipliers: List[int] = [1, 2, 4],
-        attention: str = 'Attention',
-        kld_weight: Tuple[int, int] = [0, 1]) -> None:
-        """
-        encoder:
-        decoder:
+    def __init__(self,
+                 img_dims: int,
+                 z_channels: int = 32,
+                 channels: int = 32,
+                 block: str = 'Residual',
+                 n_layer_blocks: int = 1,
+                 channel_multipliers: List[int] = [1, 2, 4],
+                 attention: str = 'Attention') -> None:
+        """_summary_
+
+        Args:
+            img_dims (int): _description_
+            z_channels (int, optional): _description_. Defaults to 32.
+            channels (int, optional): _description_. Defaults to 32.
+            block (str, optional): _description_. Defaults to 'Residual'.
+            n_layer_blocks (int, optional): _description_. Defaults to 1.
+            channel_multipliers (List[int], optional): _description_. Defaults to [1, 2, 4].
+            attention (str, optional): _description_. Defaults to 'Attention'.
         """
         super(AutoEncoder, self).__init__()
-        self.kld_weight = kld_weight[0] / kld_weight[1]
 
         self.encoder = Encoder(in_channels=img_dims[0],
                                channels=channels,
@@ -44,7 +47,7 @@ class AutoEncoder(BaseVAE):
                                channel_multipliers=channel_multipliers,
                                attention=attention,
                                double_z=True)
-        
+
         self.decoder = Decoder(out_channels=img_dims[0],
                                channels=channels,
                                z_channels=z_channels,
@@ -53,9 +56,11 @@ class AutoEncoder(BaseVAE):
                                channel_multipliers=channel_multipliers,
                                attention=attention)
 
-        self.latent_dims = [z_channels,
-                            int(img_dims[1] / (1 << (len(channel_multipliers) - 1))), 
-                            int(img_dims[2] / (1 << (len(channel_multipliers) - 1)))]
+        self.latent_dims = [
+            z_channels,
+            int(img_dims[1] / (1 << (len(channel_multipliers) - 1))),
+            int(img_dims[2] / (1 << (len(channel_multipliers) - 1)))
+        ]
 
     def encode(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         """
@@ -65,8 +70,12 @@ class AutoEncoder(BaseVAE):
         """
         # Get embeddings with shape `[batch_size, z_channels * 2, z_height, z_width]`
         mean_var = self.encoder(img)
-        z, kld_loss = GaussianDistribution(mean_var).sample()
-        return z, kld_loss
+        mean, log_var = torch.chunk(mean_var, 2, dim=1)
+
+        std = torch.exp(0.5 * log_var)
+        z = mean + std * torch.randn_like(std)
+
+        return z
 
     def decode(self, z: Tensor) -> Tensor:
         """
@@ -79,24 +88,28 @@ class AutoEncoder(BaseVAE):
         return self.decoder(z)
 
     def forward(self, img: Tensor) -> Tuple[Tensor, Tensor]:
-        z, kld_loss = self.encode(img)
-        return self.decode(z), kld_loss
-    
-    def loss_function(self, 
-                      img: Tensor, 
-                      recons_img: Tensor, 
-                      kld_loss: float) -> Tensor:
-        """
-        Computes the VAE loss function.
-        KL(N(\mu, \sigma), N(0, 1)) = \log \frac{1}{\sigma} + \frac{\sigma^2 + \mu^2}{2} - \frac{1}{2}
+        z = self.encode(img)
+        return self.decode(z), None
+
+    def loss_function(self,
+                      img: Tensor,
+                      recons_img: Tensor,
+                      other_loss: float = None) -> Tensor:
+        """_summary_
+
+        Args:
+            img (Tensor): _description_
+            recons_img (Tensor): _description_
+            other_loss (float, optional): _description_. Defaults to None.
+
+        Returns:
+            Tensor: _description_
         """
 
         recons_loss = F.mse_loss(recons_img, img)
-        loss = recons_loss + self.kld_weight * kld_loss
-        return {'loss': loss, 
-                'Reconstruction_Loss':recons_loss.detach(), 
-                'KLD':kld_loss.detach()}
-        
+        return {'loss': recons_loss}
+
+
 if __name__ == "__main__":
     import hydra
     from omegaconf import DictConfig
@@ -105,25 +118,22 @@ if __name__ == "__main__":
                                  indicator=".project-root")
     print("root: ", root)
     config_path = str(root / "configs" / "model" / "vae" / "net")
-    
+
     @hydra.main(version_base=None,
                 config_path=config_path,
                 config_name="autoencoder.yaml")
     def main(cfg: DictConfig):
-        cfg.kld_weight = [0, 1]
-
         # print(cfg)
         autoencoder: AutoEncoder = hydra.utils.instantiate(cfg)
         x = torch.randn(2, 3, 32, 32)
 
-        z, kld_loss = autoencoder.encode(x)
-        out, kld_loss = autoencoder(x)
+        z = autoencoder.encode(x)
+        out, _ = autoencoder(x)
         sample = autoencoder.sample(n_samples=2)
 
         print('***** AutoEncoder *****')
         print('Input:', x.shape)
         print('Encode:', z.shape)
-        print('KLD_Loss:', kld_loss.detach())
         print('Output:', out.shape)
         print('Sample:', sample.shape)
 

@@ -14,7 +14,7 @@ scheduler:
   gamma: 0.95
 
 net:
-  _target_: src.models.vae.net.AutoEncoder
+  _target_: src.models.vae.net.VanillaVAE
 
   kld_weight:
     - ${data.batch_size}

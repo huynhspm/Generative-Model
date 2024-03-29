@@ -14,7 +14,7 @@ scheduler:
   gamma: 0.95
 
 net:
-  _target_: src.models.vae.net.VQ_AutoEncoder
+  _target_: src.models.vae.net.VQVAE
   img_dims:
     - 3
     - $${data.image_size}

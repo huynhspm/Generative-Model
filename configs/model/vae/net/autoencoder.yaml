@@ -1,9 +1,5 @@
 _target_: src.models.vae.net.AutoEncoder
 
-kld_weight:
-  - ${data.batch_size}
-  - ${data.train_val_test_split[0]}
-
 img_dims:
   - 3
   - 32

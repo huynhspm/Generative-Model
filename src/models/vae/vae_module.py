@@ -14,6 +14,7 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 from src.models.vae.net import BaseVAE
 from src.utils.ema import LitEma
 
+
 class VAEModule(pl.LightningModule):
 
     def __init__(
@@ -84,7 +85,9 @@ class VAEModule(pl.LightningModule):
         self.val_mae.reset()
         self.val_mae_best.reset()
 
-    def model_step(self, batch: Tuple[Tensor, Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
+    def model_step(
+            self, batch: Tuple[Tensor,
+                               Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
         """Perform a single model step on a batch of data.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target labels.
@@ -99,7 +102,8 @@ class VAEModule(pl.LightningModule):
         loss = self.net.loss_function(batch, preds, loss)
         return loss, preds, batch
 
-    def training_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> Tensor:
+    def training_step(self, batch: Tuple[Tensor, Tensor],
+                      batch_idx: int) -> Tensor:
         """Perform a single training step on a batch of data from the training set.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target
@@ -119,9 +123,21 @@ class VAEModule(pl.LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        self.log("train/mae", self.train_mae, on_step=False, on_epoch=True, prog_bar=True)
-        self.log(f"train/{keys[1]}", loss[keys[1]], on_step=False, on_epoch=True, sync_dist=True)
-        self.log(f"train/{keys[2]}", loss[keys[2]], on_step=False, on_epoch=True, sync_dist=True)
+        self.log("train/mae",
+                 self.train_mae,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        self.log(f"train/{keys[1]}",
+                 loss[keys[1]],
+                 on_step=False,
+                 on_epoch=True,
+                 sync_dist=True)
+        self.log(f"train/{keys[2]}",
+                 loss[keys[2]],
+                 on_step=False,
+                 on_epoch=True,
+                 sync_dist=True)
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or backpropagation will fail!
@@ -131,7 +147,8 @@ class VAEModule(pl.LightningModule):
         "Lightning hook that is called when a training epoch ends."
         pass
 
-    def validation_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> None:
+    def validation_step(self, batch: Tuple[Tensor, Tensor],
+                        batch_idx: int) -> None:
         """Perform a single validation step on a batch of data from the validation set.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target
@@ -150,9 +167,21 @@ class VAEModule(pl.LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        self.log("val/mae", self.val_mae, on_step=False, on_epoch=True, prog_bar=True)
-        self.log(f"val/{keys[1]}", loss[keys[1]], on_step=False, on_epoch=True, sync_dist=True)
-        self.log(f"val/{keys[2]}", loss[keys[2]], on_step=False, on_epoch=True, sync_dist=True)
+        self.log("val/mae",
+                 self.val_mae,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        self.log(f"val/{keys[1]}",
+                 loss[keys[1]],
+                 on_step=False,
+                 on_epoch=True,
+                 sync_dist=True)
+        self.log(f"val/{keys[2]}",
+                 loss[keys[2]],
+                 on_step=False,
+                 on_epoch=True,
+                 sync_dist=True)
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -160,7 +189,10 @@ class VAEModule(pl.LightningModule):
         self.val_mae_best(mae)  # update best so far val mae
         # log `val_mae_best` as a value through `.compute()` method, instead of as a metric object
         # otherwise metric would be reset by lightning after each epoch
-        self.log("val/mae_best", self.val_mae_best.compute(), prog_bar=True, sync_dist=True)
+        self.log("val/mae_best",
+                 self.val_mae_best.compute(),
+                 prog_bar=True,
+                 sync_dist=True)
 
     def test_step(self, batch: Tuple[Tensor, Tensor], batch_idx: int) -> None:
         """Perform a single test step on a batch of data from the test set.
@@ -175,15 +207,27 @@ class VAEModule(pl.LightningModule):
         self.test_loss(loss['loss'])
         self.test_mae(preds, targets)
         keys = [key for key in loss.keys()]
-        
+
         self.log("test/loss",
                  self.test_loss,
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        self.log("test/mae", self.test_mae, on_step=False, on_epoch=True, prog_bar=True)
-        self.log(f"test/{keys[1]}", loss[keys[1]], on_step=False, on_epoch=True, sync_dist=True)
-        self.log(f"test/{keys[2]}", loss[keys[2]], on_step=False, on_epoch=True, sync_dist=True)
+        self.log("test/mae",
+                 self.test_mae,
+                 on_step=False,
+                 on_epoch=True,
+                 prog_bar=True)
+        self.log(f"test/{keys[1]}",
+                 loss[keys[1]],
+                 on_step=False,
+                 on_epoch=True,
+                 sync_dist=True)
+        self.log(f"test/{keys[2]}",
+                 loss[keys[2]],
+                 on_step=False,
+                 on_epoch=True,
+                 sync_dist=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
@@ -218,7 +262,7 @@ if __name__ == "__main__":
                                  indicator=".project-root")
     print("root: ", root)
     config_path = str(root / "configs" / "model" / "vae")
-    
+
     @hydra.main(version_base=None,
                 config_path=config_path,
                 config_name="vae_module.yaml")
@@ -227,7 +271,7 @@ if __name__ == "__main__":
         # print(cfg)
 
         vae_module: VAEModule = hydra.utils.instantiate(cfg)
-        vae : BaseVAE = hydra.utils.instantiate(cfg.get('net'))
+        vae: BaseVAE = hydra.utils.instantiate(cfg.get('net'))
 
         x = torch.randn(2, 3, 32, 32)
         out, kld_loss = vae_module(x)
@@ -238,5 +282,4 @@ if __name__ == "__main__":
         print('KLD_Loss:', kld_loss.detach())
         print(vae_module.model_step([x, None])[0])
 
-    
     main()

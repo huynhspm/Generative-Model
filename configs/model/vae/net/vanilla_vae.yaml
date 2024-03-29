@@ -1,11 +1,16 @@
 _target_: src.models.vae.net.VanillaVAE
 
+kld_weight:
+  - ${data.batch_size}
+  - ${data.train_val_test_split[0]}
+
 img_dims:
   - 3
   - 32
   - 32
 z_channels: 32
-hidden_dims: [32, 64, 128]
-kld_weight:
-  - ${data.batch_size}
-  - ${data.train_val_test_split[0]}
+channels: 32
+block: Residual
+n_layer_blocks: 1
+channel_multipliers: [1, 2, 4]
+attention: Attention

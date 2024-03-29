@@ -5,6 +5,8 @@ img_dims:
   - 32
   - 32
 z_channels: 32
-num_embeddings: 512
-hidden_dims: [128, 256]
-beta: 0.25
+channels: 32
+block: Residual
+n_layer_blocks: 1
+channel_multipliers: [1, 2, 4]
+attention: Attention

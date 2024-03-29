@@ -4,11 +4,12 @@ import torch
 import pyrootutils
 from torch import nn
 from torch import Tensor
-from torch.nn import functional as F
+import torch.nn.functional as F
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.vae.net import BaseVAE
+from src.models.components.up_down import Encoder, Decoder
 
 
 class VectorQuantizer(nn.Module):
@@ -69,138 +70,74 @@ class VectorQuantizer(nn.Module):
             0, 3, 1, 2).contiguous(), vq_loss  # [B x D x H x W]
 
 
-class ResidualLayer(nn.Module):
-
-    def __init__(self, in_channels: int, out_channels: int):
-        super(ResidualLayer, self).__init__()
-        self.resblock = nn.Sequential(
-            nn.Conv2d(in_channels,
-                      out_channels,
-                      kernel_size=3,
-                      padding=1,
-                      bias=False), nn.ReLU(True),
-            nn.Conv2d(out_channels, out_channels, kernel_size=1, bias=False))
-
-    def forward(self, input: Tensor) -> Tensor:
-        return input + self.resblock(input)
-
-
 class VQVAE(BaseVAE):
+    """
+    ## AutoEncoder
+
+    This consists of the encoder and decoder modules.
+    """
 
     def __init__(self,
-                 img_dims: Tuple[int, int, int],
-                 z_channels: int,
-                 num_embeddings: int,
-                 hidden_dims: List = None,
-                 beta: float = 0.25) -> None:
+                 img_dims: int,
+                 num_embeddings: int = 512,
+                 beta: float = 0.25,
+                 z_channels: int = 64,
+                 channels: int = 32,
+                 block: str = 'Residual',
+                 n_layer_blocks: int = 1,
+                 channel_multipliers: List[int] = [1, 2, 4],
+                 attention: str = 'Attention') -> None:
+        """
+        encoder:
+        decoder:
+        """
         super(VQVAE, self).__init__()
+        self.encoder = Encoder(in_channels=img_dims[0],
+                               channels=channels,
+                               z_channels=z_channels,
+                               block=block,
+                               n_layer_blocks=n_layer_blocks,
+                               channel_multipliers=channel_multipliers,
+                               attention=attention)
 
-        self.img_dims = img_dims
+        self.decoder = Decoder(out_channels=img_dims[0],
+                               channels=channels,
+                               z_channels=z_channels,
+                               block=block,
+                               n_layer_blocks=n_layer_blocks,
+                               channel_multipliers=channel_multipliers,
+                               attention=attention)
+
+        self.vq_layer = VectorQuantizer(num_embeddings, z_channels, beta)
         self.latent_dims = [
             z_channels,
-            int(img_dims[1] / len(hidden_dims)),
-            int(img_dims[2] / len(hidden_dims))
+            int(img_dims[1] / (1 << (len(channel_multipliers) - 1))),
+            int(img_dims[2] / (1 << (len(channel_multipliers) - 1)))
         ]
-        self.num_embeddings = num_embeddings
-        self.beta = beta
 
-        in_channels = img_dims[0]
-        modules = []
-        if hidden_dims is None:
-            hidden_dims = [128, 256]
-
-        # Build Encoder
-        for h_dim in hidden_dims:
-            modules.append(
-                nn.Sequential(
-                    nn.Conv2d(in_channels,
-                              out_channels=h_dim,
-                              kernel_size=4,
-                              stride=2,
-                              padding=1), nn.LeakyReLU(inplace=True)))
-            in_channels = h_dim
-
-        modules.append(
-            nn.Sequential(
-                nn.Conv2d(in_channels,
-                          in_channels,
-                          kernel_size=3,
-                          stride=1,
-                          padding=1), nn.LeakyReLU(inplace=True)))
-
-        for _ in range(6):
-            modules.append(ResidualLayer(in_channels, in_channels))
-        modules.append(nn.LeakyReLU(inplace=True))
-
-        modules.append(
-            nn.Sequential(
-                nn.Conv2d(in_channels, z_channels, kernel_size=1, stride=1),
-                nn.LeakyReLU(inplace=True)))
-
-        self.encoder = nn.Sequential(*modules)
-
-        self.vq_layer = VectorQuantizer(num_embeddings, z_channels, self.beta)
-
-        # Build Decoder
-        modules = []
-        modules.append(
-            nn.Sequential(
-                nn.Conv2d(z_channels,
-                          hidden_dims[-1],
-                          kernel_size=3,
-                          stride=1,
-                          padding=1), nn.LeakyReLU(inplace=True)))
-
-        for _ in range(6):
-            modules.append(ResidualLayer(hidden_dims[-1], hidden_dims[-1]))
-
-        modules.append(nn.LeakyReLU(inplace=True))
-
-        hidden_dims.reverse()
-
-        for i in range(len(hidden_dims) - 1):
-            modules.append(
-                nn.Sequential(
-                    nn.ConvTranspose2d(hidden_dims[i],
-                                       hidden_dims[i + 1],
-                                       kernel_size=4,
-                                       stride=2,
-                                       padding=1), nn.LeakyReLU(inplace=True)))
-
-        modules.append(
-            nn.Sequential(
-                nn.ConvTranspose2d(hidden_dims[-1],
-                                   out_channels=3,
-                                   kernel_size=4,
-                                   stride=2,
-                                   padding=1), nn.Tanh()))
-
-        self.decoder = nn.Sequential(*modules)
-
-    def encode(self, input: Tensor) -> Tuple[Tensor, Tensor]:
+    def encode(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         """
-        Encodes the input by passing through the encoder network
-        and returns the latent codes.
-        :param input: (Tensor) Input tensor to encoder [N x C x H x W]
-        :return: (Tensor) List of latent codes
+        ### Encode images to z representation
+
+        img: is the image tensor with shape `[batch_size, img_channels, img_height, img_width]`
         """
-        encoding = self.encoder(input)
-        z, vq_loss = self.vq_layer(encoding)
+        # Get embeddings with shape `[batch_size, z_channels, z_height, z_width]`
+        z = self.encoder(img)
+        z, vq_loss = self.vq_layer(z)
         return z, vq_loss
 
     def decode(self, z: Tensor) -> Tensor:
         """
-        Maps the given latent codes
-        onto the image space.
-        :param z: (Tensor) [B x D x H x W]
-        :return: (Tensor) [B x C x H x W]
+        ### Decode images from latent s
+
+        z: is the z representation with shape `[batch_size, z_channels, z_height, z_width]`
         """
 
-        result = self.decoder(z)
-        return result
+        # Decode the image of shape `[batch_size, img_channels, img_height, img_width]`
+        return self.decoder(z)
 
-    def forward(self, input: Tensor) -> List[Tensor]:
-        z, vq_loss = self.encode(input)
+    def forward(self, img: Tensor) -> Tuple[Tensor, Tensor]:
+        z, vq_loss = self.encode(img)
         return self.decode(z), vq_loss
 
     def loss_function(
@@ -209,10 +146,15 @@ class VQVAE(BaseVAE):
         recons_img: Tensor,
         vq_loss: float,
     ) -> Tensor:
-        """
-        :param args:
-        :param kwargs:
-        :return:
+        """_summary_
+
+        Args:
+            img (Tensor): _description_
+            recons_img (Tensor): _description_
+            vq_loss (float): _description_
+
+        Returns:
+            Tensor: _description_
         """
         recons_loss = F.mse_loss(img, recons_img)
 
@@ -238,18 +180,18 @@ if __name__ == "__main__":
                 config_name="vq_vae.yaml")
     def main(cfg: DictConfig):
         # print(cfg)
-
-        vqVAE: VQVAE = hydra.utils.instantiate(cfg)
+        vq_vae: VQVAE = hydra.utils.instantiate(cfg)
         x = torch.randn(2, 3, 32, 32)
-        z, kld_loss = vqVAE.encode(x)
-        out, vq_loss = vqVAE(x)
-        sample = vqVAE.sample(n_samples=2)
 
-        print('***** VQ_VAE *****')
+        x_encoded, vq_loss = vq_vae.encode(x)
+        out, vq_loss = vq_vae(x)
+        sample = vq_vae.sample(n_samples=2)
+
+        print('***** VQVAE *****')
         print('Input:', x.shape)
-        print('Encode:', z.shape)
+        print('Encode:', x_encoded.shape)
+        print('VQ_Loss:', vq_loss.detach())
         print('Output:', out.shape)
-        print('VQ__Loss:', vq_loss.detach())
         print('Sample:', sample.shape)
 
     main()
