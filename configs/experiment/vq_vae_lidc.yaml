@@ -1,10 +1,10 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=vq_vae_cvc_clinic_mask
+# python train.py experiment=vq_vae_lidc
 
 defaults:
-  - override /data: cvc_clinic.yaml
+  - override /data: lidc.yaml
   - override /model: vae/vq_vae_module.yaml
   - override /callbacks: vae.yaml
   - override /trainer: ddp.yaml
@@ -23,13 +23,13 @@ trainer:
   check_val_every_n_epoch: 5
 
 data:
-  batch_size: 8
+  batch_size: 32
   num_workers: 10
-  image_size: 256
+  image_size: 128
 
 model:
   net:
-    # encode 1x256x256 to 1x64x64
+    # encode 1x128x128 to 1x32x32
     img_dims:
       - 1
       - ${data.image_size}

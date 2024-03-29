@@ -2,6 +2,7 @@ from typing import List, Tuple, Dict
 
 import torch
 from torch import Tensor
+import torch.nn as nn
 import pyrootutils
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
@@ -22,9 +23,9 @@ class StableDiffusionModel(ConditionDiffusionModel):
         denoise_net: UNet,
         sampler: BaseSampler,
         autoencoder_weight_path: str,
-        label_embedder: torch.nn.Module = None,
-        image_embedder: torch.nn.Module = None,
-        text_embedder: torch.nn.Module = None,
+        label_embedder: nn.Module = None,
+        image_embedder: nn.Module = None,
+        text_embedder: nn.Module = None,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
         gif_frequency: int = 20,
@@ -37,9 +38,9 @@ class StableDiffusionModel(ConditionDiffusionModel):
             denoise_net (UNet): model to learn noise
             sampler (BaseSampler): mampler for process with image in diffusion
             autoencoder_weight_path (str): _description_
-            label_embedder (torch.nn.Module, optional): _description_. Defaults to None.
-            image_embedder (torch.nn.Module, optional): _description_. Defaults to None.
-            text_embedder (torch.nn.Module, optional): _description_. Defaults to None.
+            label_embedder (nn.Module, optional): _description_. Defaults to None.
+            image_embedder (nn.Module, optional): _description_. Defaults to None.
+            text_embedder (nn.Module, optional): _description_. Defaults to None.
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
             img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
             gif_frequency (int, optional): _description_. Defaults to 20.

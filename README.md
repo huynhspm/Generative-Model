@@ -114,9 +114,9 @@ Diffusion model is a type of generative model. Its approach is different from GA
 ### **4.5 VAE INTERPOLATION**
 #### **CIFAR10 (32x32)**
 ![Cifar10 Interpolation](results/vae/cifar10/interpolation.jpg)
-#### **AFHQ (128x128)**
+#### **AFHQ (64x64)**
 ![AFHQ Interpolation](results/vae/afhq/interpolation.jpg)
-#### **CELEBA (256x256)**
+#### **CELEBA (128x128)**
 ![Celeba Interpolation](results/vae/celeba/interpolationion.jpg)
 ### **4.6 Latent Diffusion**
 #### **GENDER (128x128)**

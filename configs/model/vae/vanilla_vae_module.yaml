@@ -22,8 +22,8 @@ net:
 
   img_dims:
     - 3
-    - ${data.transform_val.transforms[0].height}
-    - ${data.transform_val.transforms[0].width}
+    - ${data.image_size}
+    - ${data.image_size}
 
   z_channels: 32
   channels: 32

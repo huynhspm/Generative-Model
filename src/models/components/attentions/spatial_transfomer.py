@@ -72,7 +72,7 @@ class SpatialTransformer(nn.Module):
         x = self.proj_in(x)
         # Transpose and reshape from `[batch_size, channels, height, width]`
         # to `[batch_size, height * width, channels]`
-        x = x.permute(0, 2, 3, 1).view(b, h * w, c).contiguous()
+        x = x.permute(0, 2, 3, 1).contiguous().view(b, h * w, c)
         # Apply the transformer layers
         for block in self.transformer_blocks:
             x = block(x)

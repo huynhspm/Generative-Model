@@ -18,8 +18,8 @@ net:
   n_train_steps: 1000 # the number of diffusion step
   img_dims:
     - ${model.net.denoise_net.img_channels}
-    - ${data.transform_val.transforms[0].height}
-    - ${data.transform_val.transforms[0].width}
+    - ${data.image_size}
+    - ${data.image_size}
   denoise_net:
     _target_: src.models.unet.UNet
 

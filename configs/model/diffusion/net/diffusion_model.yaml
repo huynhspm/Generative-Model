@@ -7,8 +7,8 @@ _target_: src.models.diffusion.net.DiffusionModel
 n_train_steps: 1000 # the number of diffusion step
 img_dims:
   - ${model.net.denoise_net.img_channels}
-  - ${data.transform_val.transforms[0].height}
-  - ${data.transform_val.transforms[0].width}
+  - ${data.image_size}
+  - ${data.image_size}
 
 gif_frequency: 20
 classifier_free: false
