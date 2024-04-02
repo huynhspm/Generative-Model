@@ -5,6 +5,10 @@ metrics:
   fid: null
   IS: null
   dice: null
+  iou: null
+  mean_variance: null
+  mean_boundary_variance: null
+  boundary_threshold: 0.05
   mean: ${data.transform_val.transforms[1].mean}
   std: ${data.transform_val.transforms[1].std}
   n_ensemble: 1

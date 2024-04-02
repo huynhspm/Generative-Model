@@ -96,7 +96,7 @@ class ConditionDiffusionModel(DiffusionModel):
                 - target: noise is added to (x0 -> xt)
         """
 
-        cond_embedded = self.get_cond_embedding(cond)
+        cond_embedded = self.get_cond_embedding(cond.copy())
         return super().forward(x0, sample_steps, noise, cond_embedded)
 
     @torch.no_grad()
@@ -125,7 +125,7 @@ class ConditionDiffusionModel(DiffusionModel):
             List[Tensor]: _description_
         """
 
-        cond_embedded = self.get_cond_embedding(cond)
+        cond_embedded = self.get_cond_embedding(cond.copy())
         return super().sample(xt, sample_steps, cond_embedded, num_sample,
                               noise, repeat_noise, device, prog_bar)
 

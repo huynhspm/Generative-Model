@@ -1,12 +1,12 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=segmentation_diffusion_brats
+# python train.py experiment=vq_vae_brats_mask
 
 defaults:
   - override /data: brats.yaml
-  - override /model: diffusion/condition_diffusion_module.yaml
-  - override /callbacks: segmentation.yaml
+  - override /model: vae/vq_vae_module.yaml
+  - override /callbacks: vae.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
@@ -15,30 +15,32 @@ defaults:
 
 seed: 12345
 
-task_name: "train_segmentation_diffusion"
+task_name: "train_vae"
 
 trainer:
-  max_epochs: 2000
+  max_epochs: 50
   devices: 1
   check_val_every_n_epoch: 5
-  gradient_clip_val: 1.0
 
 data:
-  batch_size: 64
+  batch_size: 8
   num_workers: 10
-  image_size: 64
+  image_size: 256
 
 model:
   net:
-    denoise_net:
-      channel_multipliers: [1, 2, 4, 4]
-      d_cond_image: 4
-    classifier_free: false
+    # encode 1x256x256 to 1x64x64
+    img_dims:
+      - 1
+      - ${data.image_size}
+      - ${data.image_size}
+    z_channels: 1
+    channels: 64
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "segmentation-diffusion"
+    project: "vae"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
@@ -48,3 +50,13 @@ ckpt_path: null # simply provide checkpoint path to resume training
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
+  metrics:
+    dice:
+      _target_: torchmetrics.Dice
+      threshold: 0.5
+      average: micro
+    iou:
+      _target_: torchmetrics.JaccardIndex
+      threshold: 0.5
+      average: micro
+      task: binary

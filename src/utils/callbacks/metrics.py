@@ -27,6 +27,7 @@ class Metrics(Callback):
         iou: JaccardIndex | None = None,
         mean_variance: MeanMetric | None = None,
         mean_boundary_variance: MeanMetric | None = None,
+        boundary_threshold: float = 0.05,
         mean: float = 0.5,
         std: float = 0.5,
         n_ensemble: int = 1,
@@ -40,10 +41,12 @@ class Metrics(Callback):
             IS (InceptionScore | None, optional): metrics for generation task (not good - weight of inception-v3). Defaults to None.
             dice (Dice | None, optional): metrics for segmentation task. Defaults to None.
             iou (JaccardIndex | None, optional): metrics for segmentation task. Defaults to None.
-            mean_variance
+            mean_variance (MeanMetric | None, optional): _description_. Defaults to None.
+            mean_boundary_variance (MeanMetric | None, optional): _description_. Defaults to None.
+            boundary_threshold (float, optional): _description_. Defaults to 0.05.
             mean (float, optional): to convert image into (0, 1). Defaults to 0.5.
             std (float, optional): to convert image into (0, 1). Defaults to 0.5.
-            n_ensemble
+            n_ensemble (int, optional): _description_. Defaults to 1.
         """
 
         self.ssim = ssim
@@ -53,7 +56,9 @@ class Metrics(Callback):
         self.dice = dice
         self.iou = iou
         self.mean_variance = mean_variance
+
         self.mean_boundary_variance = mean_boundary_variance
+        self.boundary_threshold = boundary_threshold
 
         self.mean = mean
         self.std = std
@@ -105,52 +110,33 @@ class Metrics(Callback):
                           pl_module: LightningModule) -> None:
         self.log_metrics(pl_module, mode='test')
 
+    def rescale(self, image: Tensor):
+        #convert range (-1, 1) to (0, 1)
+        return (image * self.std + self.mean).clamp(0, 1)
+
     def get_sample(self,
                    pl_module: LightningModule,
                    reals: Tensor | None = None,
                    conds: Dict[str, Tensor] = None):
+        fakes = []
 
-        if isinstance(pl_module, VAEModule):
-            if pl_module.use_ema:
-                with pl_module.ema_scope():
-                    fakes = pl_module.net(reals)[0]
-            else:
-                fakes = pl_module.net(reals)[0]
-        elif isinstance(pl_module, DiffusionModule):
-            if not isinstance(pl_module, ConditionDiffusionModule):
-                conds = None
+        # auto use ema
+        with pl_module.ema_scope():
+            for _ in range(self.n_ensemble):
+                if isinstance(pl_module, VAEModule):
+                    recons_img, _ = pl_module.net(reals)
+                    fakes.append(recons_img)  # [b, c, w, h]
+                elif isinstance(pl_module, DiffusionModule):
+                    samples = pl_module.net.sample(
+                        num_sample=reals.shape[0],
+                        device=pl_module.device,
+                        cond=conds.copy() if isinstance(
+                            pl_module, ConditionDiffusionModule) else None)
+                    fakes.append(samples[-1])  # [b, c, w, h]
+                else:
+                    raise NotImplementedError('This module is not implemented')
 
-            # auto use ema
-            with pl_module.ema_scope():
-                fakes = []
-                b, c, w, h = reals.shape
-                for _ in range(self.n_ensemble):
-                    samples = pl_module.net.sample(num_sample=b,
-                                                   device=pl_module.device,
-                                                   cond=conds.copy())
-                    fakes.append(samples[-1])
-            fakes = torch.cat(fakes, dim=0)
-            fakes = fakes.reshape(self.n_ensemble, b, c, w, h)
-            variance = fakes.var(dim=0)
-
-            if self.mean_variance is not None:
-                self.mean_variance.to(pl_module.device)
-                self.mean_variance.update(variance.mean())
-                self.mean_variance.to('cpu')
-
-            if self.mean_boundary_variance is not None:
-                threshold= 0.05
-                ids = variance > threshold
-                boundary_variance = (variance * ids).sum(
-                    dim=[1, 2, 3]) / ids.sum(dim=[1, 2, 3])
-                self.mean_boundary_variance.to(pl_module.device)
-                self.mean_boundary_variance.update(boundary_variance)
-                self.mean_boundary_variance.to('cpu')
-
-            fakes = fakes.mean(dim=0)
-
-        else:
-            raise NotImplementedError('this module is not Implemented')
+        fakes = torch.stack(fakes, dim=1)  # (b, n, c, w, h)
 
         return fakes
 
@@ -179,11 +165,33 @@ class Metrics(Callback):
         if self.mean_boundary_variance is not None:
             self.mean_boundary_variance.reset()
 
+    def update_variance(self, fakes: Tensor, device: torch.device):
+        # (b, n, c, w, h) -> (b, c, w, h)
+        variance = fakes.var(dim=1)
+
+        if self.mean_variance is not None:
+            self.mean_variance.to(device)
+            self.mean_variance.update(variance.mean())
+            self.mean_variance.to('cpu')
+
+        if self.mean_boundary_variance is not None:
+            ids = variance > self.boundary_threshold
+            boundary_variance = ((variance * ids).sum(dim=[1, 2, 3]) +
+                                 1) / (ids.sum(dim=[1, 2, 3]) + 1)
+            self.mean_boundary_variance.to(device)
+            self.mean_boundary_variance.update(boundary_variance)
+            self.mean_boundary_variance.to('cpu')
+
     def update_metrics(self, reals: Tensor, fakes: Tensor,
                        device: torch.device):
-        # convert range (-1, 1) to (0, 1)
-        fakes = (fakes * self.std + self.mean).clamp(0, 1)
-        reals = (reals * self.std + self.mean).clamp(0, 1)
+
+        fakes = self.rescale(fakes)  # (b, n, c, w, h)
+        reals = self.rescale(reals)  # (b, c, w, h)
+
+        if self.mean_variance or self.mean_boundary_variance:
+            self.update_variance(fakes, device)
+
+        fakes = fakes.mean(dim=1)
 
         # update
         if self.ssim is not None:
@@ -196,40 +204,42 @@ class Metrics(Callback):
             self.psnr.update(fakes, reals)
             self.psnr.to('cpu')
 
-        targets = (reals > 0.5).to(torch.int64)
+        if self.dice is not None or self.iou is not None:
+            reals = (reals > 0.5).to(torch.int64)
 
-        if self.dice is not None:
-            self.dice.to(device)
-            self.dice.update(fakes, targets)
-            self.dice.to('cpu')
+            if self.dice is not None:
+                self.dice.to(device)
+                self.dice.update(fakes, reals)
+                self.dice.to('cpu')
 
-        if self.iou is not None:
-            self.iou.to(device)
-            self.iou.update(fakes, targets)
-            self.iou.to('cpu')
+            if self.iou is not None:
+                self.iou.to(device)
+                self.iou.update(fakes, reals)
+                self.iou.to('cpu')
 
-        # gray image
-        if reals.shape[1] == 1:
-            reals = torch.cat([reals, reals, reals], dim=1)
-            fakes = torch.cat([fakes, fakes, fakes], dim=1)
+        if self.fid is not None or self.IS is not None:
+            # gray to rgb image
+            if reals.shape[1] == 1:
+                reals = torch.cat([reals, reals, reals], dim=1)
+                fakes = torch.cat([fakes, fakes, fakes], dim=1)
 
-        reals = torch.nn.functional.interpolate(reals,
-                                                size=(299, 299),
-                                                mode='bilinear')
-        fakes = torch.nn.functional.interpolate(fakes,
-                                                size=(299, 299),
-                                                mode='bilinear')
+            reals = torch.nn.functional.interpolate(reals,
+                                                    size=(299, 299),
+                                                    mode='bilinear')
+            fakes = torch.nn.functional.interpolate(fakes,
+                                                    size=(299, 299),
+                                                    mode='bilinear')
 
-        if self.fid is not None:
-            self.fid.to(device)
-            self.fid.update(reals, real=True)
-            self.fid.update(fakes, real=False)
-            self.fid.to('cpu')
+            if self.fid is not None:
+                self.fid.to(device)
+                self.fid.update(reals, real=True)
+                self.fid.update(fakes, real=False)
+                self.fid.to('cpu')
 
-        if self.IS is not None:
-            self.IS.to(device)
-            self.IS.update(fakes)
-            self.IS.to('cpu')
+            if self.IS is not None:
+                self.IS.to(device)
+                self.IS.update(fakes)
+                self.IS.to('cpu')
 
     def log_metrics(self, pl_module: LightningModule, mode: str):
 

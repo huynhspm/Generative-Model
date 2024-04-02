@@ -17,7 +17,7 @@ net:
   _target_: src.models.vae.net.VQVAE
   img_dims:
     - 3
-    - $${data.image_size}
+    - ${data.image_size}
     - ${data.image_size}
   z_channels: 32
   channels: 32

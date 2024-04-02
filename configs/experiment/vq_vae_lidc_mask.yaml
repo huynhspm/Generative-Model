@@ -33,11 +33,9 @@ model:
     img_dims:
       - 1
       - ${data.image_size}
-      - ${data.image_sizeh}
+      - ${data.image_size}
     z_channels: 1
     channels: 64
-  loss: ce
-  weight: [1, 50]
 
 logger:
   wandb:

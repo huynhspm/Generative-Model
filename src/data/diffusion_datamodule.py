@@ -134,37 +134,37 @@ class DiffusionDataModule(pl.LightningDataModule):
             if self.hparams.train_val_test_dir:
                 train_dir, val_dir, test_dir = self.hparams.train_val_test_dir
 
-                self.data_train = init_dataset(self.hparams.dataset_name,
-                                               data_dir=self.hparams.data_dir,
-                                               train_val_test_dir=train_dir)
+                train_set = init_dataset(self.hparams.dataset_name,
+                                         data_dir=self.hparams.data_dir,
+                                         train_val_test_dir=train_dir)
 
-                self.data_val = init_dataset(self.hparams.dataset_name,
-                                             data_dir=self.hparams.data_dir,
-                                             train_val_test_dir=val_dir)
+                val_set = init_dataset(self.hparams.dataset_name,
+                                       data_dir=self.hparams.data_dir,
+                                       train_val_test_dir=val_dir)
 
-                self.data_test = init_dataset(self.hparams.dataset_name,
-                                              data_dir=self.hparams.data_dir,
-                                              train_val_test_dir=test_dir)
+                test_set = init_dataset(self.hparams.dataset_name,
+                                        data_dir=self.hparams.data_dir,
+                                        train_val_test_dir=test_dir)
 
             else:
                 dataset = init_dataset(self.hparams.dataset_name,
                                        data_dir=self.hparams.data_dir)
 
-                self.data_train, self.data_val, self.data_test = random_split(
+                train_set, val_set, test_set = random_split(
                     dataset=dataset,
                     lengths=self.hparams.train_val_test_split,
                     generator=torch.Generator().manual_seed(42),
                 )
 
-        self.data_train = TransformDataset(
-            dataset=self.data_train, transform=self.hparams.transform_train)
-        self.data_val = TransformDataset(dataset=self.data_val,
-                                         transform=self.hparams.transform_val)
-        self.data_test = TransformDataset(dataset=self.data_test,
-                                          transform=self.hparams.transform_val)
+            self.data_train = TransformDataset(
+                dataset=train_set, transform=self.hparams.transform_train)
+            self.data_val = TransformDataset(
+                dataset=val_set, transform=self.hparams.transform_val)
+            self.data_test = TransformDataset(
+                dataset=test_set, transform=self.hparams.transform_val)
 
-        print('Train-Val-Test:', len(self.data_train), len(self.data_val),
-              len(self.data_test))
+            print('Train-Val-Test:', len(self.data_train), len(self.data_val),
+                  len(self.data_test))
 
     def train_dataloader(self):
         return DataLoader(
@@ -217,7 +217,7 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="lidc.yaml")
+                config_name="cvc_clinic.yaml")
     def main(cfg: DictConfig):
         print(cfg)
 
@@ -225,7 +225,7 @@ if __name__ == "__main__":
             cfg, data_dir=f"{root}/data")
         datamodule.setup()
 
-        train_dataloader = datamodule.train_dataloader()
+        train_dataloader = datamodule.test_dataloader()
         print('train_dataloader:', len(train_dataloader))
 
         batch_image = next(iter(train_dataloader))

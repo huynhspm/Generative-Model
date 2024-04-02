@@ -75,14 +75,15 @@ class CABlock(nn.Module):
 
     def forward(self, x: Tensor, cond: Tensor):
         batch_size, channels, size, _ = x.shape
-        x = x.view(batch_size, channels, -1).swapaxes(1, 2)
+        x = x.view(batch_size, channels, -1).swapaxes(1, 2).contiguous()
 
         cond = self.linear(cond)
 
         for ca in self.ca_layers:
             x = ca(x, cond)
 
-        x = x.swapaxes(2, 1).view(batch_size, channels, size, size)
+        x = x.swapaxes(2, 1).contiguous().view(batch_size, channels, size,
+                                               size)
 
         return x
 
