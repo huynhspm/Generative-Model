@@ -1,6 +1,6 @@
-import os
-import nibabel
+import glob
 import numpy as np
+import os.path as osp
 from torch.utils.data import Dataset
 
 
@@ -8,58 +8,57 @@ class BRATSDataset(Dataset):
 
     dataset_dir = 'brats-2020'
     dataset_url = 'https://www.cbica.upenn.edu/MICCAI_BraTS2020_TrainingData'
-    seqtypes = ['t1', 't1ce', 't2', 'flair', 'seg']
 
-    def __init__(self, data_dir: str = 'data') -> None:
+    def __init__(
+        self,
+        data_dir: str = 'data',
+        train_val_test_dir: str = None,
+    ) -> None:
         super().__init__()
 
-        self.dataset_dir = os.path.join(data_dir, self.dataset_dir,
-                                        'MICCAI_BraTS2020_TrainingData')
+        self.dataset_dir = osp.join(data_dir, self.dataset_dir)
+        if train_val_test_dir:
+            self.dataset_dir = osp.join(self.dataset_dir, train_val_test_dir)
+            self.img_paths = glob.glob(
+                f"{self.dataset_dir}/*/image_slice_*.npy")
+        else:
+            img_dirs = [
+                f"{self.dataset_dir}/train/*/image_slice_*.npy",
+                f"{self.dataset_dir}/val/*/image_slice_*.npy",
+                f"{self.dataset_dir}/test/*/image_slice_*.npy",
+            ]
 
-        self.database = []
-        for root, dirs, files in os.walk(self.dataset_dir):
-            if not dirs:
-                datapoint = dict()
-                # extract all files as channels
-                for f in files:
-                    seqtype = f.split('_')[3].split('.')[0]
-
-                    datapoint[seqtype] = os.path.join(root, f)
-                self.database.append(datapoint)
+            self.img_paths = [
+                img_path for img_dir in img_dirs
+                for img_path in glob.glob(img_dir)
+            ]
 
     def prepare_data(self) -> None:
         pass
 
     def __len__(self) -> int:
-        return len(self.database) * 155
+        return len(self.img_paths)
 
     def __getitem__(self, index):
-        n = index // 155
-        slice = index % 155
-        filedict = self.database[n]
+        image_path = self.img_paths[index]
+        mask_path = self.img_paths[index].replace('image', 'mask')
 
-        images = []
-        mask = None
-        for seqtype in self.seqtypes:
-            nib_img = nibabel.load(filedict[seqtype])
-            img = np.array(nib_img.get_fdata())[:, :, slice]
+        image = np.load(image_path)
+        # test_dataset with no label
+        mask = np.load(mask_path) if osp.exists(mask_path) else np.zeros_like(
+            image[..., :1])
 
-            # convert range to (0, 255)
-            if seqtype == 'seg':
-                mask = (img > 0).astype(np.uint8) * 255
-            else:
-                if img.max() > 0:
-                    img = img / img.max() * 255
-                images.append(img)
-
-        images = np.stack(images, axis=-1)
-        return mask, {'image': images}
+        return mask, {'image': image}
 
 
 if __name__ == "__main__":
-    dataset = BRATSDataset(data_dir='data')
+    dataset = BRATSDataset(
+        data_dir='data',
+        train_val_test_dir='train',
+    )
     print(len(dataset))
-    mask, cond = dataset[80]
+    mask, cond = dataset[0]
+
     images = cond['image']
     print(images.shape, mask.shape)
 
