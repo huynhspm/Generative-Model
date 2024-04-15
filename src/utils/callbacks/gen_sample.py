@@ -226,7 +226,7 @@ class GenSample(Callback):
             self.log_heatmap(real_variance, pl_module, mode, 'real')
 
         images = [
-            make_grid(image, nrow=int(image.shape[0] / n_images))
+            make_grid(image, nrow=int(image.shape[0] / n_images), pad_value=1)
             for image in images
         ]
 
@@ -268,7 +268,7 @@ class GenSample(Callback):
             caption[-1] = ['t1']
             caption += ['t1ce', 't2', 'flair']
 
-        images = [make_grid(image, nrow=nrow) for image in images]
+        images = [make_grid(image, nrow=nrow, pad_value=1) for image in images]
 
         # logging
         pl_module.logger.log_image(key=mode + '/inference',
@@ -323,7 +323,7 @@ class GenSample(Callback):
             [images[0].unsqueeze(0), interpolated_img, images[1].unsqueeze(0)],
             dim=0)
         interpolated_img = self.rescale(interpolated_img)
-        interpolated_img = make_grid(interpolated_img, nrow=5)
+        interpolated_img = make_grid(interpolated_img, nrow=5, pad_value=1)
 
         # logging
         pl_module.logger.log_image(key=mode + '/interpolation',
