@@ -30,6 +30,10 @@ data:
 model:
   net:
     # encode 4x256x256 to 4x64x64
+    img_dims:
+      - 4
+      - ${data.image_size}
+      - ${data.image_size}
     z_channels: 4
     channels: 64
 

@@ -40,7 +40,7 @@ if __name__ == "__main__":
     image = cond['image']
 
     print(image.shape, image.dtype, type(image))
-    print(mask.shape, mask.dtype, type(image))
+    print(mask.shape, mask.dtype, type(mask))
 
     print(np.unique(mask))
 

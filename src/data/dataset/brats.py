@@ -17,15 +17,17 @@ class BRATSDataset(Dataset):
         super().__init__()
 
         self.dataset_dir = osp.join(data_dir, self.dataset_dir)
+        self.train_val_test_dir = train_val_test_dir
+
         if train_val_test_dir:
             self.dataset_dir = osp.join(self.dataset_dir, train_val_test_dir)
             self.img_paths = glob.glob(
                 f"{self.dataset_dir}/*/image_slice_*.npy")
         else:
             img_dirs = [
-                f"{self.dataset_dir}/train/*/image_slice_*.npy",
-                f"{self.dataset_dir}/val/*/image_slice_*.npy",
-                f"{self.dataset_dir}/test/*/image_slice_*.npy",
+                f"{self.dataset_dir}/Train/*/image_slice_*.npy",
+                f"{self.dataset_dir}/Val/*/image_slice_*.npy",
+                f"{self.dataset_dir}/Test/*/image_slice_*.npy",
             ]
 
             self.img_paths = [
@@ -44,9 +46,14 @@ class BRATSDataset(Dataset):
         mask_path = self.img_paths[index].replace('image', 'mask')
 
         image = np.load(image_path)
-        # test_dataset with no label
-        mask = np.load(mask_path) if osp.exists(mask_path) else np.zeros_like(
-            image[..., :1])
+
+        if image.max() > 0:
+            image = image / image.max()
+        
+        if self.train_val_test_dir == "Test-without-label":
+            mask = np.zeros_like(image[..., :1])
+        else:   
+            mask = np.load(mask_path)
 
         return mask, {'image': image}
 
@@ -54,13 +61,17 @@ class BRATSDataset(Dataset):
 if __name__ == "__main__":
     dataset = BRATSDataset(
         data_dir='data',
-        train_val_test_dir='train',
+        train_val_test_dir='Train',
     )
     print(len(dataset))
-    mask, cond = dataset[0]
 
+    mask, cond = dataset[0]
     images = cond['image']
-    print(images.shape, mask.shape)
+
+    print(images.shape, images.dtype, type(images))
+    print(mask.shape, mask.dtype, type(mask))
+    
+    print(np.unique(mask))
 
     import matplotlib.pyplot as plt
     plt.figure(figsize=(16, 8))

@@ -5,9 +5,7 @@ import pyrootutils
 from torch import Tensor
 import pytorch_lightning as pl
 from torch.utils.data import DataLoader, Dataset, random_split
-import albumentations as A
 from albumentations import Compose
-from albumentations.pytorch.transforms import ToTensorV2
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
@@ -217,7 +215,7 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="cvc_clinic.yaml")
+                config_name="lidc.yaml")
     def main(cfg: DictConfig):
         print(cfg)
 
@@ -225,7 +223,7 @@ if __name__ == "__main__":
             cfg, data_dir=f"{root}/data")
         datamodule.setup()
 
-        train_dataloader = datamodule.test_dataloader()
+        train_dataloader = datamodule.train_dataloader()
         print('train_dataloader:', len(train_dataloader))
 
         batch_image = next(iter(train_dataloader))
@@ -233,14 +231,14 @@ if __name__ == "__main__":
         cond_label = cond['label'] if 'label' in cond.keys() else None
         cond_image = cond['image'] if 'image' in cond.keys() else None
         masks = cond['masks'] if 'masks' in cond.keys() else None
-
-        print('Image shape:', image.shape)
+          
+        print('Image shape:', image.shape, image.dtype)
 
         if cond_label is not None:
-            print('Cond label shape:', cond_label.shape)
+            print('Cond label shape:', cond_label.shape, cond_label.dtype)
 
         if cond_image is not None:
-            print('Cond image shape:', cond_image.shape)
+            print('Cond image shape:', cond_image.shape, cond_image.dtype)
 
         visualize(image, cond_image, cond_label, masks, save_img=False)
         # gen_noise_image(xt=cond_image[0])
@@ -279,25 +277,29 @@ if __name__ == "__main__":
             # brats dataset
             if cond_image.shape[0] == 4:
                 if save_img:
+                    save_image(image, 'image.jpg')
                     save_image(cond_image[0:1], 't1.jpg')
                     save_image(cond_image[1:2], 't1ce.jpg')
                     save_image(cond_image[2:3], 't2.jpg')
                     save_image(cond_image[3:4], 'flair.jpg')
-                    save_image(cond_image, 'cond.jpg')
+
+                    plt.imshow(cond_image.moveaxis(0, 2))
+                    plt.axis('off')
+                    plt.savefig('cond.jpg')
 
                 plt.figure(figsize=(16, 8))
                 plt.subplot(1, 5, 1)
                 plt.imshow(cond_image[0:1].moveaxis(0, 2), cmap='gray')
-                plt.title('T1')
+                plt.title('FLAIR')
                 plt.subplot(1, 5, 2)
                 plt.imshow(cond_image[1:2].moveaxis(0, 2), cmap='gray')
-                plt.title('T1CE')
+                plt.title('T1')
                 plt.subplot(1, 5, 3)
                 plt.imshow(cond_image[2:3].moveaxis(0, 2), cmap='gray')
-                plt.title('T2')
+                plt.title('T1CE')
                 plt.subplot(1, 5, 4)
                 plt.imshow(cond_image[3:4].moveaxis(0, 2), cmap='gray')
-                plt.title('FLAIR')
+                plt.title('T2')
                 plt.subplot(1, 5, 5)
                 plt.imshow(image.moveaxis(0, 2), cmap='gray')
                 plt.title('Mask')

@@ -9,5 +9,6 @@ transforms:
   - _target_: albumentations.Normalize
     mean: 0.5
     std: 0.5
+    max_pixel_value: 1.0
   - _target_: albumentations.pytorch.transforms.ToTensorV2
 additional_targets: { "cond": "image" }

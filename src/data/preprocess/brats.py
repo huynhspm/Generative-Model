@@ -37,13 +37,8 @@ def preprocess(src_dir: str, des_dir: str, img_types: List[str]):
             img = img[8:-8, 8:-8, ...]
 
             if img_type == 'seg':
-                mask = (img > 0).astype(np.uint8) * 255
+                mask = np.where(img > 0, 1, 0).astype(np.float64)
             else:
-                if img.max() <= 0:
-                    raise AssertionError('negative value', file, img.max())
-                else:
-                    img = img / img.max() * 255
-
                 image.append(img)
 
         image = np.stack(image, axis=2)
@@ -63,33 +58,40 @@ def preprocess(src_dir: str, des_dir: str, img_types: List[str]):
                 np.save(mask_name, mask[..., slice])
 
 
-def split_data(train_dir, val_dir, n_patient_val=40):
-    train_patients = os.listdir(train_dir)
+def split_data(src_dir, des_dir, n_patient_val=36):
+    train_patients = os.listdir(src_dir)
 
     random.seed(42)
     val_patients = random.sample(train_patients, n_patient_val)
 
     for val_patient in val_patients:
-        shutil.move(f"{train_dir}/{val_patient}", f"{val_dir}/{val_patient}")
+        shutil.move(f"{src_dir}/{val_patient}", f"{des_dir}/{val_patient}")
 
 
 if __name__ == "__main__":
+    data_url_2020 = "https://www.cbica.upenn.edu/MICCAI_BraTS2020_TrainingData"
+    data_url_2021 = "https://www.kaggle.com/datasets/dschettler8845/brats-2021-task1"
+
     data_dir = "data/brats-2020/"
-    data_url = 'https://www.cbica.upenn.edu/MICCAI_BraTS2020_TrainingData'
+    # data_dir = "data/brats-2021/"
 
     train_src_dir = os.path.join(data_dir, 'MICCAI_BraTS2020_TrainingData')
-    train_des_dir = os.path.join(data_dir, 'train')
+    # train_src_dir = os.path.join(data_dir, 'BraTS2021_TrainingData')
+    train_des_dir = os.path.join(data_dir, 'Train')
     train_img_types = ['flair', 'seg', 't1', 't1ce', 't2']
     preprocess(src_dir=train_src_dir,
                des_dir=train_des_dir,
                img_types=train_img_types)
 
-    test_src_dir = os.path.join(data_dir, 'MICCAI_BraTS2020_ValidationData')
-    test_des_dir = os.path.join(data_dir, 'test')
-    test_img_types = ['flair', 't1', 't1ce', 't2']  # no label
-    preprocess(src_dir=test_src_dir,
-               des_dir=test_des_dir,
-               img_types=test_img_types)
+    # test_src_dir = os.path.join(data_dir, "MICCAI_BraTS2020_ValidationData")
+    # test_des_dir = os.path.join(data_dir, 'Test-without-lablel')
+    # test_img_types = ['flair', 't1', 't1ce', 't2']  # no label
+    # preprocess(src_dir=test_src_dir,
+    #            des_dir=test_des_dir,
+    #            img_types=test_img_types)
 
-    val_dir = os.path.join(data_dir, 'val')
+    val_dir = os.path.join(data_dir, 'Val')
     split_data(train_des_dir, val_dir)
+
+    test_dir = os.path.join(data_dir, 'Test')
+    split_data(train_des_dir, test_dir)

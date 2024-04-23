@@ -17,11 +17,21 @@ class LIDCDataset(Dataset):
     ) -> None:
         super().__init__()
 
-        self.dataset_dir = osp.join(data_dir, self.dataset_dir)
+        self.dataset_dir = osp.join(data_dir, self.dataset_dir, "Multi-Annotations")
         if train_val_test_dir:
             self.dataset_dir = osp.join(self.dataset_dir, train_val_test_dir)
+            self.img_paths = glob.glob(f"{self.dataset_dir}/Image/*/slice_*.npy")
+        else:
+            img_dirs = [
+                f"{self.dataset_dir}/Train/Image/*/slice_*.npy",
+                f"{self.dataset_dir}/Val/Image/*/slice_*.npy",
+                f"{self.dataset_dir}/Test/Image/*/slice_*.npy",
+            ]
 
-        self.img_paths = glob.glob(f"{self.dataset_dir}/Image/*/*_image.npy")
+            self.img_paths = [
+                img_path for img_dir in img_dirs
+                for img_path in glob.glob(img_dir)
+            ]
 
         self.multi_mask = multi_mask
 
@@ -33,38 +43,40 @@ class LIDCDataset(Dataset):
 
     def __getitem__(self, index):
         img_path = self.img_paths[index]
-        mask_path = img_path.replace('Image',
-                                     'Mask').replace('NI', 'MA').replace(
-                                         '_image.npy', '_e.npy')
+        mask_path = img_path.replace('Image', 'Mask').replace('.npy', '_e.npy')
 
         image = np.load(img_path)
         mask = np.load(mask_path)
 
-        # convert range to (0, 255)
-        image = (image - image.min()) / (image.max() - image.min()) * 255
-        mask = mask.astype(np.uint8) * 255
+        image = (image - image.min()) / (image.max() - image.min())
+        mask = mask.astype(np.float64)
 
         if not self.multi_mask:
             return mask, {'image': image}
 
         # multi mask
-        masks = [np.load(mask_path.replace('_e', f'_{i}')) for i in range(4)]
-        masks = np.stack(masks, axis=-1).astype(np.uint8) * 255
+        masks = [np.load(mask_path.replace('_e', f'_{i}')).astype(np.float64) for i in range(4)]
+        masks = np.stack(masks, axis=-1)
 
         return mask, {'image': image, 'masks': masks}
 
 
 if __name__ == "__main__":
     dataset = LIDCDataset(data_dir='data',
-                          multi_mask=True,
-                          train_val_test_dir="Test")
+                          multi_mask=True)
     print(len(dataset))
+
     mask, cond = dataset[0]
     image = cond['image']
     masks = cond['masks']
-    variance = (masks / 255.0).var(axis=-1)
+    
+    print(image.shape, image.dtype, type(image))
+    print(mask.shape, mask.dtype, type(mask))
 
-    print(image.shape, mask.shape, masks.shape, variance.shape)
+    print(np.unique(mask))
+
+    variance = masks.var(axis=-1)
+    print(masks.shape, variance.shape)
 
     import seaborn as sns
     import matplotlib.pyplot as plt
