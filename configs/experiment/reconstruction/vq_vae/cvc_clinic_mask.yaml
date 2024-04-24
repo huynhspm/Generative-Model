@@ -61,4 +61,4 @@ callbacks:
 
       average: micro
       task: binary
-      ignore_index: 0
+      # ignore_index: 0

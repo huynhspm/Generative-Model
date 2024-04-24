@@ -167,7 +167,8 @@ class Metrics(Callback):
 
     def update_variance(self, fakes: Tensor, device: torch.device):
         # (b, n, c, w, h) -> (b, c, w, h)
-        variance = fakes.var(dim=1)
+        preds = (fakes > 0.5).to(torch.int64)
+        variance = preds.var(dim=1)
 
         if self.mean_variance is not None:
             self.mean_variance.to(device)
@@ -205,16 +206,17 @@ class Metrics(Callback):
             self.psnr.to('cpu')
 
         if self.dice is not None or self.iou is not None:
-            reals = (reals > 0.5).to(torch.int64)
+            preds = (reals > 0.5).to(torch.int64)
+            targets = (fakes > 0.5).to(torch.int64)
 
             if self.dice is not None:
                 self.dice.to(device)
-                self.dice.update(fakes, reals)
+                self.dice.update(preds, targets)
                 self.dice.to('cpu')
 
             if self.iou is not None:
                 self.iou.to(device)
-                self.iou.update(fakes, reals)
+                self.iou.update(preds, targets)
                 self.iou.to('cpu')
 
         if self.fid is not None or self.IS is not None:

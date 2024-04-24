@@ -11,7 +11,7 @@ model_checkpoint:
   dirpath: ${paths.output_dir}/checkpoints
   filename: "epoch_{epoch:03d}"
   monitor: "val/dice"
-  mode: "min"
+  mode: "max"
   save_last: True
   auto_insert_metric_name: False
 
@@ -23,13 +23,13 @@ metrics:
   n_ensemble: 5
   dice:
     _target_: torchmetrics.Dice
-    threshold: 0.5
     average: micro
+    ignore_index: 0
   iou:
     _target_: torchmetrics.JaccardIndex
-    threshold: 0.5
     average: micro
     task: binary
+    # ignore_index: 0 # error from torchmetrics
   mean_variance:
     _target_: torchmetrics.MeanMetric
   mean_boundary_variance:
