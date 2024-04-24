@@ -43,7 +43,9 @@ class LatentDiffusionModel(DiffusionModel):
         super().__init__(denoise_net, sampler, n_train_steps, img_dims,
                          gif_frequency, classifier_free)
         assert autoencoder_weight_path is not None, "autoencoder_weight_path must not be None"
-        self.autoencoder_module: VAEModule = VAEModule.load_from_checkpoint(
+        print("autoencoder_weight_path: ", autoencoder_weight_path)
+
+        self.autoencoder_module: VAEMdule = VAEModule.load_from_checkpoint(
             autoencoder_weight_path)
         self.autoencoder_module.eval().freeze()
         self.latent_scaling_factor = latent_scaling_factor
