@@ -69,8 +69,10 @@ def split_data(src_dir, des_dir, n_patient_val=36):
 
 
 if __name__ == "__main__":
-    data_url_2020 = "https://www.cbica.upenn.edu/MICCAI_BraTS2020_TrainingData"
-    data_url_2021 = "https://www.kaggle.com/datasets/dschettler8845/brats-2021-task1"
+    dataset_url = {
+        "2020": "https://www.med.upenn.edu/cbica/brats2020/data.html",
+        "2021": "http://braintumorsegmentation.org/",
+    }
 
     data_dir = "data/brats-2020/"
     # data_dir = "data/brats-2021/"

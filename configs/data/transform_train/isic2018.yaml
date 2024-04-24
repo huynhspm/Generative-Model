@@ -1,0 +1,13 @@
+_target_: albumentations.Compose
+transforms:
+  - _target_: albumentations.Resize
+    height: ${data.image_size}
+    width: ${data.image_size}
+    always_apply: true
+  - _target_: albumentations.HorizontalFlip
+    p: 0.5
+  - _target_: albumentations.Normalize
+    mean: 0.5
+    std: 0.5
+  - _target_: albumentations.pytorch.transforms.ToTensorV2
+additional_targets: { "cond": "image" }

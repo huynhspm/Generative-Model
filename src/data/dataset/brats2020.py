@@ -4,11 +4,12 @@ import os.path as osp
 from torch.utils.data import Dataset
 
 
-class BRATSDataset(Dataset):
+class BraTS2020Dataset(Dataset):
 
-    dataset_dir = 'brats-2020'
-    dataset_url = 'https://www.cbica.upenn.edu/MICCAI_BraTS2020_TrainingData'
+    dataset_dir = "brats-2020"
+    dataset_url = "https://www.med.upenn.edu/cbica/brats2020/data.html"
 
+    
     def __init__(
         self,
         data_dir: str = 'data',
@@ -59,7 +60,7 @@ class BRATSDataset(Dataset):
 
 
 if __name__ == "__main__":
-    dataset = BRATSDataset(
+    dataset = BraTS2020Dataset(
         data_dir='data',
         train_val_test_dir='Train',
     )

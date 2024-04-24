@@ -1,21 +1,21 @@
 _target_: src.data.DiffusionDataModule
 
 defaults:
-  - transform_train: isic.yaml
-  - transform_val: isic.yaml
+  - transform_train: isic2018.yaml
+  - transform_val: isic2018.yaml
   - _self_
 
 data_dir: ${paths.data_dir}
+# train_val_test_split: [0.8, 0.1, 0.1]
 train_val_test_dir:
   [
     "ISIC2018_Task1-2_Training_Input",
     "ISIC2018_Task1-2_Validation_Input",
     "ISIC2018_Task1-2_Test_Input",
   ]
-# train_val_test_split: [0.8, 0.1, 0.1]
 batch_size: 128
 num_workers: 0
 pin_memory: True
-dataset_name: isic
+dataset_name: isic2018
 n_classes: -1
 image_size: 256

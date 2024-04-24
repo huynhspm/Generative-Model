@@ -1,0 +1,16 @@
+_target_: src.data.DiffusionDataModule
+
+defaults:
+  - transform_train: brats2020.yaml
+  - transform_val: brats2020.yaml
+  - _self_
+
+data_dir: ${paths.data_dir}
+# train_val_test_split: [0.8, 0.1, 0.1]
+train_val_test_dir: ["Train", "Val", "Test"]
+batch_size: 128
+num_workers: 0
+pin_memory: True
+dataset_name: brats2020
+n_classes: -1
+image_size: 256
