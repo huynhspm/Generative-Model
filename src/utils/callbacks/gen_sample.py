@@ -179,7 +179,8 @@ class GenSample(Callback):
                          mode: str,
                          n_images: int = 6):
         ensemble = fakes.mean(dim=1)
-        fake_variance = fakes.var(dim=1)
+        preds = (fakes > 0.5).to(torch.float64)
+        fake_variance = preds.var(dim=1)
 
         if fake_variance.shape[0] < n_images: return
 

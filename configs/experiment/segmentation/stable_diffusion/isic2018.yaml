@@ -4,7 +4,7 @@
 # python train.py experiment=segmentation/stable_diffusion/isic2018
 
 defaults:
-  - override /data: isic.yaml
+  - override /data: isic2018.yaml
   - override /model: diffusion/stable_diffusion_module.yaml
   - override /callbacks: segmentation.yaml
   - override /trainer: ddp.yaml

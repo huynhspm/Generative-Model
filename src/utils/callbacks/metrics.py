@@ -167,7 +167,7 @@ class Metrics(Callback):
 
     def update_variance(self, fakes: Tensor, device: torch.device):
         # (b, n, c, w, h) -> (b, c, w, h)
-        preds = (fakes > 0.5).to(torch.int64)
+        preds = (fakes > 0.5).to(torch.float64)
         variance = preds.var(dim=1)
 
         if self.mean_variance is not None:
