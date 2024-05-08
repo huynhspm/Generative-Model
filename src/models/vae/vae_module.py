@@ -8,6 +8,9 @@ from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
 from contextlib import contextmanager
 
+from torch.nn import MSELoss, BCELoss
+from segmentation_models_pytorch.losses import DiceLoss
+
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.vae.net import BaseVAE
@@ -22,7 +25,19 @@ class VAEModule(pl.LightningModule):
         optimizer: Optimizer,
         scheduler: lr_scheduler,
         use_ema: bool = False,
+        loss: str = "mse",
+        weight_loss: List[int] = None,
     ):
+        """_summary_
+
+        Args:
+            net (BaseVAE): _description_
+            optimizer (Optimizer): _description_
+            scheduler (lr_scheduler): _description_
+            use_ema (bool, optional): _description_. Defaults to False.
+            loss (str, optional): loss function for reconstruction. Defaults to "mse".
+            weight_loss (_type_, optional): for weighted-cross-entropy-loss. Defaults to List[int]=None.
+        """
         super().__init__()
 
         # this line allows to access init params with 'self.hparams' attribute
@@ -32,6 +47,16 @@ class VAEModule(pl.LightningModule):
         # autoencoder
         self.net = net
 
+        # loss function
+        if loss == "mse":
+            self.criterion = MSELoss()
+        elif loss == "bce":
+            self.criterion = BCELoss(weight=torch.tensor(weight_loss))
+        elif loss == "dice":
+            self.criterion = DiceLoss(mode="binary", log_loss=True, from_logits=False)
+        else:
+            raise NotImplementedError(f"not implemented {loss}-loss")
+        
         # for averaging loss across batches
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
@@ -74,6 +99,24 @@ class VAEModule(pl.LightningModule):
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
 
+    def compute_loss(self, preds: Tensor, targets:Tensor, loss: Dict[str, Tensor]):
+        if isinstance(self.criterion, BCELoss, DiceLoss):
+            targets = targets * 0.5 + 0.5
+            preds = preds * 0.5 + 0.5
+
+        recons_loss = self.criterion(preds, targets)
+
+        # only for reconstruction -> autoencoder
+        if loss is None:
+            return {"loss": recons_loss}
+        
+        # variational autoencoder
+        loss["Reconstruction_Loss"] = recons_loss
+        loss["loss"] = sum(loss.values())
+        for key in loss:
+            loss[key] = loss[key].detach()
+
+        
     def model_step(
             self, batch: Tuple[Tensor,
                                Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
@@ -88,7 +131,7 @@ class VAEModule(pl.LightningModule):
         """
         batch, _ = batch
         preds, loss = self.forward(batch)
-        loss = self.net.loss_function(batch, preds, loss)
+        loss = self.compute_loss(preds, batch, loss)
         return loss, preds, batch
 
     def training_step(self, batch: Tuple[Tensor, Tensor],

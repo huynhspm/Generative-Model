@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import torch
 import pyrootutils
@@ -111,7 +111,7 @@ class VanillaVAE(BaseVAE):
         z, kld_loss = GaussianDistribution(mean_var).sample()
         return z, kld_loss
 
-    def decode(self, z: Tensor) -> Tensor:
+    def decode(self, z: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
         """
         ### Decode images from latent s
 
@@ -123,18 +123,8 @@ class VanillaVAE(BaseVAE):
 
     def forward(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         z, kld_loss = self.encode(img)
-        return self.decode(z), kld_loss
-
-    def loss_function(self, img: Tensor, recons_img: Tensor,
-                      kld_loss: float) -> Tensor:
-
-        recons_loss = F.mse_loss(recons_img, img)
-        loss = recons_loss + self.kld_weight * kld_loss
-        return {
-            'loss': loss,
-            'Reconstruction_Loss': recons_loss.detach(),
-            'KLD': kld_loss.detach()
-        }
+        loss = {"kld_loss": kld_loss}
+        return self.decode(z), loss
 
 
 if __name__ == "__main__":

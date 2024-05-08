@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import List, Tuple, Dict
 
 import torch
 import pyrootutils
@@ -136,34 +136,10 @@ class VQVAE(BaseVAE):
         # Decode the image of shape `[batch_size, img_channels, img_height, img_width]`
         return self.decoder(z)
 
-    def forward(self, img: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, img: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
         z, vq_loss = self.encode(img)
-        return self.decode(z), vq_loss
-
-    def loss_function(
-        self,
-        img: Tensor,
-        recons_img: Tensor,
-        vq_loss: float,
-    ) -> Tensor:
-        """_summary_
-
-        Args:
-            img (Tensor): _description_
-            recons_img (Tensor): _description_
-            vq_loss (float): _description_
-
-        Returns:
-            Tensor: _description_
-        """
-        recons_loss = F.mse_loss(img, recons_img)
-
-        loss = recons_loss + vq_loss
-        return {
-            'loss': loss,
-            'Reconstruction_Loss': recons_loss.detach(),
-            'VQ_Loss': vq_loss.detach()
-        }
+        loss = {"vq_loss": vq_loss}
+        return self.decode(z), loss
 
 
 if __name__ == "__main__":

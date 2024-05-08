@@ -87,27 +87,9 @@ class AutoEncoder(BaseVAE):
         # Decode the image of shape `[batch_size, img_channels, img_height, img_width]`
         return self.decoder(z)
 
-    def forward(self, img: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, img: Tensor) -> Tuple[Tensor, None]:
         z = self.encode(img)
         return self.decode(z), None
-
-    def loss_function(self,
-                      img: Tensor,
-                      recons_img: Tensor,
-                      other_loss: float = None) -> Tensor:
-        """_summary_
-
-        Args:
-            img (Tensor): _description_
-            recons_img (Tensor): _description_
-            other_loss (float, optional): _description_. Defaults to None.
-
-        Returns:
-            Tensor: _description_
-        """
-
-        recons_loss = F.mse_loss(recons_img, img)
-        return {'loss': recons_loss}
 
 
 if __name__ == "__main__":

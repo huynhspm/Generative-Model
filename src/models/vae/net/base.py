@@ -1,4 +1,4 @@
-from typing import Tuple
+from typing import Tuple, Dict
 
 import torch
 from torch import nn
@@ -33,7 +33,7 @@ class BaseVAE(nn.Module):
         return samples
 
     @abstractmethod
-    def forward(self, img: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, img: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
         pass
 
     @abstractmethod

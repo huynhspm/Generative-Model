@@ -25,3 +25,5 @@ net:
   n_layer_blocks: 1
   channel_multipliers: [1, 2, 4]
   attention: Attention
+
+loss: "mse"
