@@ -1,10 +1,10 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=segmentation/condition_diffusion/cvc_clinic
+# python src/train.py experiment=segmentation/condition_diffusion/train/lidc
 
 defaults:
-  - override /data: cvc_clinic.yaml
+  - override /data: lidc.yaml
   - override /model: diffusion/condition_diffusion_module.yaml
   - override /callbacks: segmentation.yaml
   - override /trainer: ddp.yaml
@@ -18,22 +18,21 @@ seed: 12345
 task_name: "train_segmentation_diffusion"
 
 trainer:
-  max_epochs: 2000
+  max_epochs: 700
   devices: 1
   check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
 
 data:
   batch_size: 64
-  num_workers: 20
+  num_workers: 10
   image_size: 64
 
 model:
   net:
     denoise_net:
       channel_multipliers: [1, 2, 4, 4]
-      d_cond_image: 3
-    classifier_free: false
+      d_cond_image: 1
 
 logger:
   wandb:

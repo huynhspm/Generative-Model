@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=segmentation/stable_diffusion/cvc_clinic
+# python src/eval.py experiment=segmentation/stable_diffusion/eval/cvc_clinic
 
 defaults:
   - override /data: cvc_clinic.yaml
@@ -15,17 +15,14 @@ defaults:
 
 seed: 12345
 
-task_name: "train_segmentation_diffusion"
+task_name: "eval_segmentation_diffusion"
 
 trainer:
-  max_epochs: 2000
   devices: 1
-  check_val_every_n_epoch: 5
-  gradient_clip_val: 1.0
 
 data:
-  batch_size: 16
-  num_workers: 20
+  batch_size: 64
+  num_workers: 10
   image_size: 256
 
 model:
@@ -56,7 +53,8 @@ logger:
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
-ckpt_path: null # simply provide checkpoint path to resume training
+# passing checkpoint path is necessary for evaluation
+ckpt_path: null
 
 callbacks:
   gen_sample:

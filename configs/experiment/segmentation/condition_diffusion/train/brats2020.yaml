@@ -1,12 +1,12 @@
 # @package _global_
 
 # to execute this experiment run:
-# python src/train.py experiment=reconstruction/vq_vae/lidc_mask
+# python src/train.py experiment=segmentation/condition_diffusion/train/brats2020
 
 defaults:
-  - override /data: lidc.yaml
-  - override /model: vae/vq_vae_module.yaml
-  - override /callbacks: vae.yaml
+  - override /data: brats2020.yaml
+  - override /model: diffusion/condition_diffusion_module.yaml
+  - override /callbacks: segmentation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
@@ -15,34 +15,30 @@ defaults:
 
 seed: 12345
 
-task_name: "train_reconstruction_vae"
+task_name: "train_segmentation_diffusion"
 
 trainer:
-  max_epochs: 50
+  max_epochs: 200
   devices: 1
   check_val_every_n_epoch: 5
+  gradient_clip_val: 1.0
 
 data:
-  batch_size: 32
+  batch_size: 64
   num_workers: 10
-  image_size: 128
+  image_size: 64
 
 model:
   net:
-    # encode 1x128x128 to 1x32x32
-    img_dims:
-      - 1
-      - ${data.image_size}
-      - ${data.image_size}
-    z_channels: 1
-    channels: 64
-    loss: "bce"
-    weight_loss: [1, 50]
+    denoise_net:
+      channel_multipliers: [1, 2, 4, 4]
+      d_cond_image: 4
+    classifier_free: false
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "vae"
+    project: "segmentation-diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
@@ -52,13 +48,3 @@ ckpt_path: null # simply provide checkpoint path to resume training
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
-  metrics:
-    dice:
-      _target_: torchmetrics.Dice
-      average: micro
-      ignore_index: 0
-    iou:
-      _target_: torchmetrics.JaccardIndex
-      average: micro
-      task: binary
-      # ignore_index: 0

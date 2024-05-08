@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=segmentation/condition_diffusion/lidc
+# python src/train.py experiment=segmentation/stable_diffusion/train/brats2020
 
 defaults:
-  - override /data: lidc.yaml
-  - override /model: diffusion/condition_diffusion_module.yaml
+  - override /data: brats2020.yaml
+  - override /model: diffusion/stable_diffusion_module.yaml
   - override /callbacks: segmentation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -18,21 +18,34 @@ seed: 12345
 task_name: "train_segmentation_diffusion"
 
 trainer:
-  max_epochs: 2000
+  max_epochs: 200
   devices: 1
   check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 64
+  batch_size: 16
   num_workers: 20
-  image_size: 64
+  image_size: 256
 
 model:
+  optimizer:
+    lr: 2.0e-05
   net:
+    img_dims:
+      - 1
+      - 64
+      - 64
     denoise_net:
+      channels: 128
       channel_multipliers: [1, 2, 4, 4]
-      d_cond_image: 1
+      d_cond_image: ${model.net.image_embedder.d_embed}
+    image_embedder:
+      _target_: src.models.components.embeds.ImageEmbedder
+      in_channels: 4
+      d_embed: 4
+      channel_multipliers: [1, 2, 4]
+    autoencoder_weight_path: null
 
 logger:
   wandb:
@@ -47,5 +60,3 @@ ckpt_path: null # simply provide checkpoint path to resume training
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
-  metrics:
-    boundary_threshold: 0

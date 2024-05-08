@@ -1,10 +1,10 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=segmentation/condition_diffusion/brats2021
+# python src/eval.py experiment=segmentation/condition_diffusion/eval/isic2018
 
 defaults:
-  - override /data: brats2021.yaml
+  - override /data: isic2018.yaml
   - override /model: diffusion/condition_diffusion_module.yaml
   - override /callbacks: segmentation.yaml
   - override /trainer: ddp.yaml
@@ -15,16 +15,13 @@ defaults:
 
 seed: 12345
 
-task_name: "train_segmentation_diffusion"
+task_name: "eval_segmentation_diffusion"
 
 trainer:
-  max_epochs: 2000
   devices: 1
-  check_val_every_n_epoch: 5
-  gradient_clip_val: 1.0
 
 data:
-  batch_size: 64
+  batch_size: 256
   num_workers: 10
   image_size: 64
 
@@ -32,7 +29,7 @@ model:
   net:
     denoise_net:
       channel_multipliers: [1, 2, 4, 4]
-      d_cond_image: 4
+      d_cond_image: 3
     classifier_free: false
 
 logger:
@@ -43,7 +40,8 @@ logger:
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
-ckpt_path: null # simply provide checkpoint path to resume training
+# passing checkpoint path is necessary for evaluation
+ckpt_path: null
 
 callbacks:
   gen_sample:

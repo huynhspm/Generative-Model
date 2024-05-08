@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=reconstruction/vq_vae/cvc_clinic_image
+# python src/train.py experiment=reconstruction/vq_vae/cvc_clinic_image
 
 defaults:
   - override /data: cvc_clinic.yaml
