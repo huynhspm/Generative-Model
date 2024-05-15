@@ -21,7 +21,7 @@ trainer:
   devices: 1
 
 data:
-  batch_size: 64
+  batch_size: 256
   num_workers: 10
   image_size: 64
 

@@ -8,7 +8,7 @@ from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
 from contextlib import contextmanager
 
-from torch.nn import MSELoss, BCELoss
+from torch.nn import MSELoss, BCEWithLogitsLoss, CrossEntropyLoss
 from segmentation_models_pytorch.losses import DiceLoss
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
@@ -50,8 +50,10 @@ class VAEModule(pl.LightningModule):
         # loss function
         if loss == "mse":
             self.criterion = MSELoss()
+        elif loss =="ce":
+            self.criterion = CrossEntropyLoss(weight=torch.tensor(weight_loss, dtype=torch.float32))
         elif loss == "bce":
-            self.criterion = BCELoss(weight=torch.tensor(weight_loss))
+            self.criterion = BCEWithLogitsLoss(weight=torch.tensor(weight_loss))
         elif loss == "dice":
             self.criterion = DiceLoss(mode="binary", log_loss=True, from_logits=False)
         else:
@@ -100,9 +102,13 @@ class VAEModule(pl.LightningModule):
         self.val_loss.reset()
 
     def compute_loss(self, preds: Tensor, targets:Tensor, loss: Dict[str, Tensor]):
-        if isinstance(self.criterion, BCELoss, DiceLoss):
+        if isinstance(self.criterion, (BCEWithLogitsLoss, DiceLoss)):
             targets = targets * 0.5 + 0.5
             preds = preds * 0.5 + 0.5
+        elif isinstance(self.criterion, CrossEntropyLoss):
+            targets = (targets.squeeze(dim=1) * 0.5 + 0.5).to(torch.int64)
+            preds = preds * 0.5 + 0.5
+            preds = torch.cat((1 - preds, preds), dim=1)
 
         recons_loss = self.criterion(preds, targets)
 
@@ -113,8 +119,12 @@ class VAEModule(pl.LightningModule):
         # variational autoencoder
         loss["Reconstruction_Loss"] = recons_loss
         loss["loss"] = sum(loss.values())
+        
         for key in loss:
+            if key == "loss": continue
             loss[key] = loss[key].detach()
+        
+        return loss
 
         
     def model_step(
@@ -131,8 +141,8 @@ class VAEModule(pl.LightningModule):
         """
         batch, _ = batch
         preds, loss = self.forward(batch)
-        loss = self.compute_loss(preds, batch, loss)
-        return loss, preds, batch
+        losses = self.compute_loss(preds, batch, loss)
+        return losses
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
                       batch_idx: int) -> Tensor:
@@ -143,31 +153,31 @@ class VAEModule(pl.LightningModule):
         :param batch_idx: The index of the current batch.
         :return: A tensor of losses between model predictions and targets.
         """
-        loss, preds, targets = self.model_step(batch)
-
+        losses = self.model_step(batch)
+    
         # update and log metrics
-        self.train_loss(loss['loss'])
-        keys = [key for key in loss.keys()]
+        self.train_loss(losses["loss"])
 
         self.log("train/loss",
                  self.train_loss,
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        self.log(f"train/{keys[1]}",
-                 loss[keys[1]],
-                 on_step=False,
-                 on_epoch=True,
-                 sync_dist=True)
-        self.log(f"train/{keys[2]}",
-                 loss[keys[2]],
-                 on_step=False,
-                 on_epoch=True,
-                 sync_dist=True)
+
+
+        for key in losses.keys():
+            if key == "loss": continue
+
+            self.log(f"train/{key}",
+                    losses[key],
+                    on_step=False,
+                    on_epoch=True,
+                    sync_dist=True)
+            
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or backpropagation will fail!
-        return {"loss": loss['loss']}
+        return {"loss": losses["loss"]}
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
@@ -181,27 +191,26 @@ class VAEModule(pl.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+        losses = self.model_step(batch)
 
         # update and log metrics
-        self.val_loss(loss['loss'])
-        keys = [key for key in loss.keys()]
+        self.val_loss(losses['loss'])
+        keys = [key for key in losses.keys()]
 
         self.log("val/loss",
                  self.val_loss,
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        self.log(f"val/{keys[1]}",
-                 loss[keys[1]],
-                 on_step=False,
-                 on_epoch=True,
-                 sync_dist=True)
-        self.log(f"val/{keys[2]}",
-                 loss[keys[2]],
-                 on_step=False,
-                 on_epoch=True,
-                 sync_dist=True)
+        
+        for key in losses.keys():
+            if key == "loss": continue
+
+            self.log(f"train/{key}",
+                    losses[key],
+                    on_step=False,
+                    on_epoch=True,
+                    sync_dist=True)
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -214,27 +223,26 @@ class VAEModule(pl.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+        losses = self.model_step(batch)
 
         # update and log metrics
-        self.test_loss(loss['loss'])
-        keys = [key for key in loss.keys()]
+        self.test_loss(losses['loss'])
+        keys = [key for key in losses.keys()]
 
         self.log("test/loss",
                  self.test_loss,
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        self.log(f"test/{keys[1]}",
-                 loss[keys[1]],
-                 on_step=False,
-                 on_epoch=True,
-                 sync_dist=True)
-        self.log(f"test/{keys[2]}",
-                 loss[keys[2]],
-                 on_step=False,
-                 on_epoch=True,
-                 sync_dist=True)
+        
+        for key in losses.keys():
+            if key == "loss": continue
+
+            self.log(f"train/{key}",
+                    losses[key],
+                    on_step=False,
+                    on_epoch=True,
+                    sync_dist=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""

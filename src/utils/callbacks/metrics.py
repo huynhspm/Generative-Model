@@ -25,9 +25,8 @@ class Metrics(Callback):
         IS: InceptionScore | None = None,
         dice: Dice | None = None,
         iou: JaccardIndex | None = None,
-        mean_variance: MeanMetric | None = None,
-        mean_boundary_variance: MeanMetric | None = None,
-        boundary_threshold: float = 0.05,
+        image_variance: MeanMetric | None = None,
+        boundary_variance: MeanMetric | None = None,
         mean: float = 0.5,
         std: float = 0.5,
         n_ensemble: int = 1,
@@ -41,9 +40,8 @@ class Metrics(Callback):
             IS (InceptionScore | None, optional): metrics for generation task (not good - weight of inception-v3). Defaults to None.
             dice (Dice | None, optional): metrics for segmentation task. Defaults to None.
             iou (JaccardIndex | None, optional): metrics for segmentation task. Defaults to None.
-            mean_variance (MeanMetric | None, optional): _description_. Defaults to None.
-            mean_boundary_variance (MeanMetric | None, optional): _description_. Defaults to None.
-            boundary_threshold (float, optional): _description_. Defaults to 0.05.
+            image_variance (MeanMetric | None, optional): _description_. Defaults to None.
+            boundary_variance (MeanMetric | None, optional): _description_. Defaults to None.
             mean (float, optional): to convert image into (0, 1). Defaults to 0.5.
             std (float, optional): to convert image into (0, 1). Defaults to 0.5.
             n_ensemble (int, optional): _description_. Defaults to 1.
@@ -55,10 +53,8 @@ class Metrics(Callback):
         self.IS = IS
         self.dice = dice
         self.iou = iou
-        self.mean_variance = mean_variance
-
-        self.mean_boundary_variance = mean_boundary_variance
-        self.boundary_threshold = boundary_threshold
+        self.image_variance = image_variance
+        self.boundary_variance = boundary_variance
 
         self.mean = mean
         self.std = std
@@ -159,29 +155,29 @@ class Metrics(Callback):
         if self.iou is not None:
             self.iou.reset()
 
-        if self.mean_variance is not None:
-            self.mean_variance.reset()
+        if self.image_variance is not None:
+            self.image_variance.reset()
 
-        if self.mean_boundary_variance is not None:
-            self.mean_boundary_variance.reset()
+        if self.boundary_variance is not None:
+            self.boundary_variance.reset()
 
     def update_variance(self, fakes: Tensor, device: torch.device):
         # (b, n, c, w, h) -> (b, c, w, h)
         preds = (fakes > 0.5).to(torch.float64)
         variance = preds.var(dim=1)
 
-        if self.mean_variance is not None:
-            self.mean_variance.to(device)
-            self.mean_variance.update(variance.mean())
-            self.mean_variance.to('cpu')
+        if self.image_variance is not None:
+            self.image_variance.to(device)
+            self.image_variance.update(variance.mean())
+            self.image_variance.to('cpu')
 
-        if self.mean_boundary_variance is not None:
-            ids = variance > self.boundary_threshold
-            boundary_variance = ((variance * ids).sum(dim=[1, 2, 3]) +
-                                 1) / (ids.sum(dim=[1, 2, 3]) + 1)
-            self.mean_boundary_variance.to(device)
-            self.mean_boundary_variance.update(boundary_variance)
-            self.mean_boundary_variance.to('cpu')
+        if self.boundary_variance is not None:
+            boundary = variance > 0
+            boundary_variance = ((boundary).sum(dim=[1, 2, 3]) +
+                                 1) / (boundary.sum(dim=[1, 2, 3]) + 1)
+            self.boundary_variance.to(device)
+            self.boundary_variance.update(boundary_variance)
+            self.boundary_variance.to('cpu')
 
     def update_metrics(self, reals: Tensor, fakes: Tensor,
                        device: torch.device):
@@ -189,7 +185,7 @@ class Metrics(Callback):
         fakes = self.rescale(fakes)  # (b, n, c, w, h)
         reals = self.rescale(reals)  # (b, c, w, h)
 
-        if self.mean_variance or self.mean_boundary_variance:
+        if self.image_variance or self.boundary_variance:
             self.update_variance(fakes, device)
 
         fakes = fakes.mean(dim=1)
@@ -245,25 +241,25 @@ class Metrics(Callback):
 
     def log_metrics(self, pl_module: LightningModule, mode: str):
 
-        if self.mean_variance is not None:
-            self.mean_variance.to(pl_module.device)
-            pl_module.log(mode + '/mean_variance',
-                          self.mean_variance.compute(),
+        if self.image_variance is not None:
+            self.image_variance.to(pl_module.device)
+            pl_module.log(mode + '/image_variance',
+                          self.image_variance.compute(),
                           on_step=False,
                           on_epoch=True,
                           prog_bar=False,
                           sync_dist=True)
-            self.mean_variance.to('cpu')
+            self.image_variance.to('cpu')
 
-        if self.mean_boundary_variance is not None:
-            self.mean_boundary_variance.to(pl_module.device)
-            pl_module.log(mode + '/mean_boundary_variance',
-                          self.mean_boundary_variance.compute(),
+        if self.oundary_variance is not None:
+            self.boundary_variance.to(pl_module.device)
+            pl_module.log(mode + '/boundary_variance',
+                          self.boundary_variance.compute(),
                           on_step=False,
                           on_epoch=True,
                           prog_bar=False,
                           sync_dist=True)
-            self.mean_boundary_variance.to('cpu')
+            self.boundary_variance.to('cpu')
 
         if self.ssim is not None:
             self.ssim.to(pl_module.device)

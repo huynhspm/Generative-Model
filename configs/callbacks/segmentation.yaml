@@ -30,11 +30,10 @@ metrics:
     average: micro
     task: binary
     # ignore_index: 0 # error from torchmetrics
-  mean_variance:
+  image_variance:
     _target_: torchmetrics.MeanMetric
-  mean_boundary_variance:
+  boundary_variance:
     _target_: torchmetrics.MeanMetric
-  boundary_threshold: 0.05
 
 gen_sample:
   n_ensemble: 5
