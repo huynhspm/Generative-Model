@@ -31,7 +31,7 @@ model:
   net:
     # encode 3x256x256 to 3x64x64
     z_channels: 3
-    channels: 64
+    base_channels: 64
 
 logger:
   wandb:

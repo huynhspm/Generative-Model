@@ -251,7 +251,7 @@ class Metrics(Callback):
                           sync_dist=True)
             self.image_variance.to('cpu')
 
-        if self.oundary_variance is not None:
+        if self.boundary_variance is not None:
             self.boundary_variance.to(pl_module.device)
             pl_module.log(mode + '/boundary_variance',
                           self.boundary_variance.compute(),

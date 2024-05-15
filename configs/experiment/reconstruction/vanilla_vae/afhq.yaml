@@ -30,7 +30,7 @@ model:
   net:
     # encode to 3x64x64
     z_channels: 3
-    channels: 64
+    base_channels: 64
     channel_multipliers: [1, 2, 4, 4]
     n_layer_blocks: 2
 

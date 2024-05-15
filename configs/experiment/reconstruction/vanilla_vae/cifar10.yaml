@@ -30,7 +30,7 @@ model:
   net:
     # encode to 16x16x16
     z_channels: 16
-    channels: 128
+    base_channels: 64
     channel_multipliers: [1, 2]
     n_layer_blocks: 2
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

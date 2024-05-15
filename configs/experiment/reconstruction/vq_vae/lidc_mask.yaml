@@ -35,9 +35,11 @@ model:
       - ${data.image_size}
       - ${data.image_size}
     z_channels: 1
-    channels: 64
-    loss: "bce"
-    weight_loss: [1, 50]
+    base_channels: 64
+  loss: "bce"
+  weight_loss: 50
+  # loss: ce
+  # weight_loss: [1, 50]
 
 logger:
   wandb:

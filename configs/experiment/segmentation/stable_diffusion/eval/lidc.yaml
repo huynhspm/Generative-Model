@@ -34,7 +34,7 @@ model:
       - 32
       - 32
     denoise_net:
-      channels: 128
+      base_channels: 128
       channel_multipliers: [1, 2, 4, 4]
       d_cond_image: ${model.net.image_embedder.d_embed}
     image_embedder:

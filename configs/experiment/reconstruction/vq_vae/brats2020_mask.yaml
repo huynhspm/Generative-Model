@@ -35,7 +35,7 @@ model:
       - ${data.image_size}
       - ${data.image_size}
     z_channels: 1
-    channels: 64
+    base_channels: 64
 
 logger:
   wandb:
