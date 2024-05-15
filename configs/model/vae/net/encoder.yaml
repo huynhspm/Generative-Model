@@ -1,9 +1,0 @@
-encoder:
-  _target_: src.models.vae.net.Encoder
-  in_channels: 3
-  channels: 32
-  z_channels: 32
-  block: Residual
-  n_layer_blocks: 1
-  channel_multipliers: [1, 2, 4]
-  attention: Attention

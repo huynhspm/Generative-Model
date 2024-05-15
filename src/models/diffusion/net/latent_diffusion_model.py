@@ -6,7 +6,7 @@ import pyrootutils
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.unet import UNet
+from src.models.unet.net import UNetAttention
 from src.models.vae import VAEModule
 from src.models.diffusion.net import DiffusionModel
 from src.models.diffusion.sampler import BaseSampler
@@ -20,7 +20,7 @@ class LatentDiffusionModel(DiffusionModel):
     def __init__(
         self,
         autoencoder_weight_path: str,
-        denoise_net: UNet,
+        denoise_net: UNetAttention,
         sampler: BaseSampler,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
@@ -32,7 +32,7 @@ class LatentDiffusionModel(DiffusionModel):
 
         Args:
             autoencoder_weight_path (str): _description_
-            denoise_net (UNet): model to learn noise
+            denoise_net (UNetAttention): model to learn noise
             sampler (BaseSampler): sampler for process with image in diffusion 
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
             img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
@@ -45,7 +45,7 @@ class LatentDiffusionModel(DiffusionModel):
         assert autoencoder_weight_path is not None, "autoencoder_weight_path must not be None"
         print("autoencoder_weight_path: ", autoencoder_weight_path)
 
-        self.autoencoder_module: VAEMdule = VAEModule.load_from_checkpoint(
+        self.autoencoder_module: VAEModule = VAEModule.load_from_checkpoint(
             autoencoder_weight_path)
         self.autoencoder_module.eval().freeze()
         self.latent_scaling_factor = latent_scaling_factor

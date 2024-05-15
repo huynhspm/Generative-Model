@@ -7,7 +7,7 @@ import pyrootutils
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.unet import UNet
+from src.models.unet.net import UNetAttention
 from src.models.vae import VAEModule
 from src.models.diffusion.sampler import BaseSampler
 from src.models.diffusion.net import ConditionDiffusionModel
@@ -20,7 +20,7 @@ class StableDiffusionModel(ConditionDiffusionModel):
 
     def __init__(
         self,
-        denoise_net: UNet,
+        denoise_net: UNetAttention,
         sampler: BaseSampler,
         autoencoder_weight_path: str,
         label_embedder: nn.Module = None,
@@ -35,8 +35,8 @@ class StableDiffusionModel(ConditionDiffusionModel):
         """_summary_
 
         Args:
-            denoise_net (UNet): model to learn noise
-            sampler (BaseSampler): mampler for process with image in diffusion
+            denoise_net (UNetAttention): model to learn noise
+            sampler (BaseSampler): sampler for process with image in diffusion
             autoencoder_weight_path (str): _description_
             label_embedder (nn.Module, optional): _description_. Defaults to None.
             image_embedder (nn.Module, optional): _description_. Defaults to None.

@@ -1,56 +1,42 @@
-from typing import List, Any, Tuple, Dict
+from typing import Any, Tuple, List, Dict
 
 import torch
 from torch import Tensor
 import pyrootutils
+import torch.nn as nn
 import pytorch_lightning as pl
 from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
 from contextlib import contextmanager
 
-from torch.nn import MSELoss, BCEWithLogitsLoss, CrossEntropyLoss
+from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
 from segmentation_models_pytorch.losses import DiceLoss
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.vae.net import BaseVAE
 from src.utils.ema import LitEma
 
 
-class VAEModule(pl.LightningModule):
+class UNetModule(pl.LightningModule):
 
     def __init__(
         self,
-        net: BaseVAE,
+        net: nn.Module,
         optimizer: Optimizer,
         scheduler: lr_scheduler,
         use_ema: bool = False,
         loss: str = "mse",
         weight_loss: List[int] = None,
-    ):
-        """_summary_
-
-        Args:
-            net (BaseVAE): _description_
-            optimizer (Optimizer): _description_
-            scheduler (lr_scheduler): _description_
-            use_ema (bool, optional): _description_. Defaults to False.
-            loss (str, optional): loss function for reconstruction. Defaults to "mse".
-            weight_loss (_type_, optional): for weighted-cross-entropy-loss. Defaults to List[int]=None.
-        """
+    ) -> None:
         super().__init__()
-
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # autoencoder
+        # diffusion model
         self.net = net
 
-        # loss function
-        if loss == "mse":
-            self.criterion = MSELoss()
-        elif loss =="ce":
+        if loss =="ce":
             self.criterion = CrossEntropyLoss(weight=torch.tensor(weight_loss, dtype=torch.float32))
         elif loss == "bce":
             self.criterion = BCEWithLogitsLoss(weight=torch.tensor(weight_loss))
@@ -58,7 +44,7 @@ class VAEModule(pl.LightningModule):
             self.criterion = DiceLoss(mode="binary", log_loss=True, from_logits=False)
         else:
             raise NotImplementedError(f"not implemented {loss}-loss")
-        
+
         # for averaging loss across batches
         self.train_loss = MeanMetric()
         self.val_loss = MeanMetric()
@@ -87,12 +73,9 @@ class VAEModule(pl.LightningModule):
                 if context is not None:
                     print(f"{context}: Restored training weights")
 
-    def forward(self, x: Tensor) -> Tensor:
-        """Perform a forward pass through the model `self.net`.
-
-        :param x: A tensor of images.
-        :return: A tensor of images
-        """
+    def forward(self,
+                x: Tensor) -> Tensor:
+        """Perform a forward pass through the model `self.net`."""
         return self.net(x)
 
     def on_train_start(self) -> None:
@@ -101,32 +84,6 @@ class VAEModule(pl.LightningModule):
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
 
-    def compute_loss(self, preds: Tensor, targets:Tensor, loss: Dict[str, Tensor]):
-        if isinstance(self.criterion, (BCEWithLogitsLoss, DiceLoss)):
-            targets = targets * 0.5 + 0.5
-            preds = preds * 0.5 + 0.5
-        elif isinstance(self.criterion, CrossEntropyLoss):
-            targets = (targets.squeeze(dim=1) * 0.5 + 0.5).to(torch.int64)
-            preds = preds * 0.5 + 0.5
-            preds = torch.cat((1 - preds, preds), dim=1)
-
-        recons_loss = self.criterion(preds, targets)
-
-        # only for reconstruction -> autoencoder
-        if loss is None:
-            return {"loss": recons_loss}
-        
-        # variational autoencoder
-        loss["recons_loss"] = recons_loss
-        loss["loss"] = sum(loss.values())
-        
-        for key in loss:
-            if key == "loss": continue
-            loss[key] = loss[key].detach()
-        
-        return loss
-
-        
     def model_step(
             self, batch: Tuple[Tensor,
                                Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
@@ -139,45 +96,34 @@ class VAEModule(pl.LightningModule):
             - A tensor of predictions.
             - A tensor of target labels.
         """
-        batch, _ = batch
-        preds, loss = self.forward(batch)
-        losses = self.compute_loss(preds, batch, loss)
-        return losses
+        batch, targets = batch
+        preds = self.forward(batch)
+        preds = nn.functional.softmax(preds, dim=1)
+
+        if isinstance(self.criterion, (BCEWithLogitsLoss, DiceLoss)):
+            targets = targets * 0.5 + 0.5
+        elif isinstance(self.criterion, CrossEntropyLoss):
+            targets = (targets.squeeze(dim=1) * 0.5 + 0.5).to(torch.int64)
+        
+        loss = self.criterion(preds, targets)
+        return loss
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
                       batch_idx: int) -> Tensor:
-        """Perform a single training step on a batch of data from the training set.
+        loss = self.model_step(batch)
 
-        :param batch: A batch of data (a tuple) containing the input tensor of images and target
-            labels.
-        :param batch_idx: The index of the current batch.
-        :return: A tensor of losses between model predictions and targets.
-        """
-        losses = self.model_step(batch)
-    
         # update and log metrics
-        self.train_loss(losses["loss"])
+        self.train_loss(loss)
 
         self.log("train/loss",
                  self.train_loss,
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-
-
-        for key in losses.keys():
-            if key == "loss": continue
-
-            self.log(f"train/{key}",
-                    losses[key],
-                    on_step=False,
-                    on_epoch=True,
-                    sync_dist=True)
-            
         # we can return here dict with any tensors
         # and then read it in some callback or in `training_epoch_end()` below
         # remember to always return loss from `training_step()` or backpropagation will fail!
-        return {"loss": losses["loss"]}
+        return {"loss": loss}
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
@@ -191,26 +137,16 @@ class VAEModule(pl.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        losses = self.model_step(batch)
+        loss = self.model_step(batch)
 
         # update and log metrics
-        self.val_loss(losses['loss'])
-        keys = [key for key in losses.keys()]
+        self.val_loss(loss)
 
         self.log("val/loss",
                  self.val_loss,
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        
-        for key in losses.keys():
-            if key == "loss": continue
-
-            self.log(f"train/{key}",
-                    losses[key],
-                    on_step=False,
-                    on_epoch=True,
-                    sync_dist=True)
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -223,26 +159,15 @@ class VAEModule(pl.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        losses = self.model_step(batch)
+        loss = self.model_step(batch)
 
         # update and log metrics
-        self.test_loss(losses['loss'])
-        keys = [key for key in losses.keys()]
-
+        self.test_loss(loss)
         self.log("test/loss",
                  self.test_loss,
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        
-        for key in losses.keys():
-            if key == "loss": continue
-
-            self.log(f"train/{key}",
-                    losses[key],
-                    on_step=False,
-                    on_epoch=True,
-                    sync_dist=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
@@ -256,13 +181,14 @@ class VAEModule(pl.LightningModule):
         """
         optimizer = self.hparams.optimizer(params=self.parameters())
         if self.hparams.scheduler is not None:
-            scheduler = self.hparams.scheduler(optimizer=optimizer)
+            scheduler = torch.optim.lr_scheduler.LambdaLR(
+                optimizer=optimizer, lr_lambda=self.hparams.scheduler.schedule)
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {
                     "scheduler": scheduler,
                     "monitor": "val/loss",
-                    "interval": "epoch",
+                    "interval": "step",
                     "frequency": 1,
                 },
             }
@@ -276,28 +202,20 @@ if __name__ == "__main__":
     root = pyrootutils.find_root(search_from=__file__,
                                  indicator=".project-root")
     print("root: ", root)
-    config_path = str(root / "configs" / "model" / "vae")
+    config_path = str(root / "configs" / "model" / "unet")
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="vq_vae_module.yaml")
+                config_name="unet_module.yaml")
     def main(cfg: DictConfig):
+        # print(cfg)
 
-        # cfg['net']['kld_weight']=[0, 1]
-        cfg['net']['img_dims'] = [3, 32, 32]
-         # print(cfg)
+        unet_module: UNetModule = hydra.utils.instantiate(cfg)
 
-
-        vae_module: VAEModule = hydra.utils.instantiate(cfg)
-        vae: BaseVAE = hydra.utils.instantiate(cfg.get('net'))
-
-        x = torch.randn(2, 3, 32, 32)
-        out, loss = vae_module(x)
-
-        print('***** VAE_Module *****')
+        x = torch.randn(2, 1, 32, 32)
+        out = unet_module(x)
+        print('*' * 20, ' UNET MODULE ', '*' * 20)
         print('Input:', x.shape)
         print('Output:', out.shape)
-        print('Loss:', loss)
-        print(vae_module.model_step([x, None]))
 
     main()

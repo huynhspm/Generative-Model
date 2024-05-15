@@ -79,21 +79,30 @@ class VQVAE(BaseVAE):
 
     def __init__(self,
                  img_dims: int,
+                 z_channels: int = 3,
+                 base_channels: int = 64,
                  num_embeddings: int = 512,
                  beta: float = 0.25,
-                 z_channels: int = 64,
-                 channels: int = 32,
                  block: str = 'Residual',
                  n_layer_blocks: int = 1,
                  channel_multipliers: List[int] = [1, 2, 4],
                  attention: str = 'Attention') -> None:
-        """
-        encoder:
-        decoder:
+        """_summary_
+
+        Args:
+            img_dims (int): _description_
+            z_channels (int, optional): _description_. Defaults to 64.
+            base_channels (int, optional): _description_. Defaults to 32.
+            num_embeddings (int, optional): _description_. Defaults to 512.
+            beta (float, optional): _description_. Defaults to 0.25.
+            block (str, optional): _description_. Defaults to 'Residual'.
+            n_layer_blocks (int, optional): _description_. Defaults to 1.
+            channel_multipliers (List[int], optional): _description_. Defaults to [1, 2, 4].
+            attention (str, optional): _description_. Defaults to 'Attention'.
         """
         super(VQVAE, self).__init__()
         self.encoder = Encoder(in_channels=img_dims[0],
-                               channels=channels,
+                               base_channels=base_channels,
                                z_channels=z_channels,
                                block=block,
                                n_layer_blocks=n_layer_blocks,
@@ -101,7 +110,7 @@ class VQVAE(BaseVAE):
                                attention=attention)
 
         self.decoder = Decoder(out_channels=img_dims[0],
-                               channels=channels,
+                               base_channels=base_channels,
                                z_channels=z_channels,
                                block=block,
                                n_layer_blocks=n_layer_blocks,
@@ -166,7 +175,7 @@ if __name__ == "__main__":
         print('***** VQVAE *****')
         print('Input:', x.shape)
         print('Encode:', x_encoded.shape)
-        print('VQ_Loss:', vq_loss.detach())
+        print('VQ_Loss:', vq_loss)
         print('Output:', out.shape)
         print('Sample:', sample.shape)
 

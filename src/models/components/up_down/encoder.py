@@ -19,17 +19,17 @@ class Encoder(nn.Module):
 
     def __init__(self,
                  in_channels: int,
-                 channels: int = 32,
-                 z_channels: int = 32,
+                 z_channels: int = 3,
+                 base_channels: int = 64,
                  block: str = "Residual",
                  n_layer_blocks: int = 1,
                  channel_multipliers: List[int] = [1, 2, 4],
                  attention: str = "Attention",
                  double_z: bool = False) -> None:
         """
-        in_channels: is the number of channels in the image
-        channels: is the number of channels in the first convolution layer
+        in_channels: is the number of channels in the input
         z_channels: is the number of channels in the embedding space
+        base_channels: is the number of channels in the first convolution layer
         block: is the block of block in each layers of encoder
         n_layer_blocks: is the number of resnet layers at each resolution
         channel_multipliers: are the multiplicative factors for the number of channels in the subsequent blocks
@@ -42,7 +42,9 @@ class Encoder(nn.Module):
         levels = len(channel_multipliers)
 
         # Number of channels at each level
-        channels_list = [channels * m for m in channel_multipliers]
+        channels_list = [base_channels * m for m in channel_multipliers]
+
+        channels = base_channels
 
         # Block to downSample
         Block = init_block(block)

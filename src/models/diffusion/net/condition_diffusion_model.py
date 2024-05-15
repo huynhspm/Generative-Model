@@ -7,7 +7,7 @@ import pyrootutils
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.unet import UNet
+from src.models.unet.net import UNetAttention
 from src.models.diffusion.net import DiffusionModel
 from src.models.diffusion.sampler import BaseSampler
 
@@ -19,7 +19,7 @@ class ConditionDiffusionModel(DiffusionModel):
 
     def __init__(
         self,
-        denoise_net: UNet,
+        denoise_net: UNetAttention,
         sampler: BaseSampler,
         label_embedder: nn.Module = None,
         image_embedder: nn.Module = None,

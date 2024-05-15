@@ -9,7 +9,7 @@ from tqdm import tqdm
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.unet import UNet
+from src.models.unet.net import UNetAttention
 from src.models.diffusion.sampler import BaseSampler
 from src.models.diffusion.sampler import noise_like
 
@@ -25,7 +25,7 @@ class DiffusionModel(nn.Module):
 
     def __init__(
         self,
-        denoise_net: UNet,
+        denoise_net: UNetAttention,
         sampler: BaseSampler,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
@@ -35,7 +35,7 @@ class DiffusionModel(nn.Module):
         """_summary_
 
         Args:
-            denoise_net (UNet): model to learn noise
+            denoise_net (UNetAttention): model to learn noise
             sampler (BaseSampler): sampler for process with image in diffusion
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
             img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         cfg['n_train_steps'] = 1000
         cfg['img_dims'] = [1, 32, 32]
         cfg['sampler']['n_train_steps'] = 1000
-        # print(cfg)
+        print(cfg)
 
         diffusion_model: DiffusionModel = hydra.utils.instantiate(cfg)
 

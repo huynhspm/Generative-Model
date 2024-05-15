@@ -4,8 +4,8 @@ img_dims:
   - 3
   - 32
   - 32
-z_channels: 32
-channels: 32
+z_channels: 3
+base_channels: 64
 block: Residual
 n_layer_blocks: 1
 channel_multipliers: [1, 2, 4]

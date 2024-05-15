@@ -1,17 +1,17 @@
 from typing import List, Tuple
 
 import torch
+import torch.nn as nn
 import pyrootutils
 from torch import Tensor
 import torch.nn.functional as F
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.vae.net import BaseVAE
 from src.models.components.up_down import Encoder, Decoder
 
 
-class AutoEncoder(BaseVAE):
+class AutoEncoder(nn.Module):
     """
     ## AutoEncoder
 
@@ -20,8 +20,8 @@ class AutoEncoder(BaseVAE):
 
     def __init__(self,
                  img_dims: int,
-                 z_channels: int = 32,
-                 channels: int = 32,
+                 z_channels: int = 3,
+                 base_channels: int = 64,
                  block: str = 'Residual',
                  n_layer_blocks: int = 1,
                  channel_multipliers: List[int] = [1, 2, 4],
@@ -29,18 +29,18 @@ class AutoEncoder(BaseVAE):
         """_summary_
 
         Args:
-            img_dims (int): _description_
-            z_channels (int, optional): _description_. Defaults to 32.
-            channels (int, optional): _description_. Defaults to 32.
-            block (str, optional): _description_. Defaults to 'Residual'.
-            n_layer_blocks (int, optional): _description_. Defaults to 1.
-            channel_multipliers (List[int], optional): _description_. Defaults to [1, 2, 4].
+            img_dims (int): the list of dimension of image.
+            z_channels (int, optional): is the number of channels in the embedding space. Defaults to 3.
+            base_channels (int, optional): is the number of channels in the first convolution layer. Defaults to 64.
+            block (str, optional):  is the block of block in each layers. Defaults to 'Residual'.
+            n_layer_blocks (int, optional): is the number of resnet layers at each resolution. Defaults to 1.
+            channel_multipliers (List[int], optional): are the multiplicative factors for the number of channels in the subsequent blocks. Defaults to [1, 2, 4].
             attention (str, optional): _description_. Defaults to 'Attention'.
         """
         super(AutoEncoder, self).__init__()
 
         self.encoder = Encoder(in_channels=img_dims[0],
-                               channels=channels,
+                               base_channels=base_channels,
                                z_channels=z_channels,
                                block=block,
                                n_layer_blocks=n_layer_blocks,
@@ -49,7 +49,7 @@ class AutoEncoder(BaseVAE):
                                double_z=True)
 
         self.decoder = Decoder(out_channels=img_dims[0],
-                               channels=channels,
+                               base_channels=base_channels,
                                z_channels=z_channels,
                                block=block,
                                n_layer_blocks=n_layer_blocks,
@@ -111,12 +111,10 @@ if __name__ == "__main__":
 
         z = autoencoder.encode(x)
         out, _ = autoencoder(x)
-        sample = autoencoder.sample(n_samples=2)
 
         print('***** AutoEncoder *****')
         print('Input:', x.shape)
         print('Encode:', z.shape)
         print('Output:', out.shape)
-        print('Sample:', sample.shape)
 
     main()

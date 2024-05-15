@@ -6,7 +6,7 @@ _target_: src.models.diffusion.net.DiffusionModel
 
 n_train_steps: 1000 # the number of diffusion step
 img_dims:
-  - ${model.net.denoise_net.img_channels}
+  - ${model.net.denoise_net.in_channels}
   - ${data.image_size}
   - ${data.image_size}
 
