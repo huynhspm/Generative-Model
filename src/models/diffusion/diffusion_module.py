@@ -23,6 +23,7 @@ class DiffusionModule(pl.LightningModule):
         optimizer: Optimizer,
         scheduler: lr_scheduler,
         use_ema: bool = False,
+        compile: bool = False,
     ) -> None:
         super().__init__()
         # this line allows to access init params with 'self.hparams' attribute
@@ -161,6 +162,18 @@ class DiffusionModule(pl.LightningModule):
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
         pass
+
+    def setup(self, stage: str) -> None:
+        """Lightning hook that is called at the beginning of fit (train + validate), validate,
+        test, or predict.
+
+        This is a good hook when you need to build models dynamically or adjust something about
+        them. This hook is called on every process when using DDP.
+
+        :param stage: Either `"fit"`, `"validate"`, `"test"`, or `"predict"`.
+        """
+        if self.hparams.compile and stage == "fit":
+            self.net = torch.compile(self.net)
 
     def configure_optimizers(self) -> Dict[str, Any]:
         """Choose what optimizers and learning-rate schedulers to use in your optimization.

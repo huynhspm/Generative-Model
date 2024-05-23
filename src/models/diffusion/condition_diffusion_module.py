@@ -18,8 +18,10 @@ class ConditionDiffusionModule(DiffusionModule):
         optimizer: Optimizer,
         scheduler: lr_scheduler,
         use_ema: bool = False,
-    ) -> None:
-        super().__init__(net, optimizer, scheduler, use_ema)
+        compile: bool = False,
+        
+    ) -> None: 
+        super().__init__(net, optimizer, scheduler, use_ema, compile)
 
     def model_step(self, batch: Any):
         batch, cond = batch

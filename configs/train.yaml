@@ -42,11 +42,8 @@ train: True
 # lightning chooses best weights based on the metric specified in checkpoint callback
 test: True
 
-# compile model for faster training with pytorch 2.0
-compile: False
-
 # simply provide checkpoint path to resume training
 ckpt_path: null
 
 # seed for random number generators in pytorch, numpy and python.random
-seed: 42
+seed: null
