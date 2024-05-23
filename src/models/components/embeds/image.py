@@ -7,8 +7,7 @@ from torch import Tensor
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.components.blocks import init_block
-from src.models.components.up_down import DownSample
+from src.models.components.up_down import Encoder
 
 
 class ImageEmbedder(nn.Module):
@@ -17,103 +16,79 @@ class ImageEmbedder(nn.Module):
     """
 
     def __init__(self,
-                 in_channels: int,
-                 channels: int = 32,
+                 img_channels: int,
                  d_embed: int = 3,
+                 base_channels: int = 64,
                  block: str = "Residual",
                  n_layer_blocks: int = 1,
-                 channel_multipliers: List[int] = [1, 2, 4]) -> None:
+                 channel_multipliers: List[int] = [1, 2, 4],
+                 attention: str = 'Attention',
+                 autoencoder_weight_path: str = None,
+                 freeze: bool = False) -> None:
+        """_summary_
+
+        Args:
+            img_channels (int): is the number of channels in the image
+            d_embed (int, optional): is the number of channels in the embedding space. Defaults to 3.
+            base_channels (int, optional): is the number of channels in the first convolution layer. Defaults to 32.
+            block (str, optional): is the block of block in each layers of embedder. Defaults to "Residual".
+            n_layer_blocks (int, optional): is the number of resnet layers at each resolution. Defaults to 1.
+            channel_multipliers (List[int], optional): are the multiplicative factors for the number of channels in the subsequent blocks. Defaults to [1, 2, 4].
+            attention (str, optional): _description_. Defaults to 'Attention'.
+            autoencoder_weight_path (str, optional): _description_. Defaults to None.
         """
-        in_channels: is the number of channels in the image
-        channels: is the number of channels in the first convolution layer
-        d_embed: is the number of channels in the embedding space
-        block: is the block of block in each layers of embedder
-        n_layer_blocks: is the number of resnet layers at each resolution
-        channel_multipliers: are the multiplicative factors for the number of channels in the subsequent blocks
-        """
+
         super().__init__()
 
-        # Number of levels downSample
-        levels = len(channel_multipliers)
+        self.encoder = Encoder(in_channels=img_channels,
+                               base_channels=base_channels,
+                               z_channels=d_embed,
+                               block=block,
+                               n_layer_blocks=n_layer_blocks,
+                               channel_multipliers=channel_multipliers,
+                               attention=attention)
 
-        # Number of channels at each level
-        channels_list = [channels * m for m in channel_multipliers]
+        if autoencoder_weight_path is not None:
+            self.load_weights(autoencoder_weight_path, freeze)
+        else:
+            print('Image_Embedder will train with diffusion')
 
-        # Block to downSample
-        Block = init_block(block) if block is not None else None
+    def load_weights(self, autoencoder_weight_path: str, freeze: bool = False):
+        # Load weights from a file
+        autoencoder_state_dict = torch.load(
+            autoencoder_weight_path)['state_dict']
 
-        # Input convolution
-        self.embedder_input = nn.Conv2d(in_channels=in_channels,
-                                        out_channels=channels,
-                                        kernel_size=3,
-                                        padding=1)
+        embedder_state_dict = dict()
+        for key in autoencoder_state_dict.keys():
+            if 'encoder' not in key or 'ema' in key: continue
 
-        # List of top-level blocks
-        self.embedder = nn.ModuleList()
+            new_key = key.replace('net.encoder.', '')
+            embedder_state_dict[new_key] = autoencoder_state_dict[key]
 
-        # Prepare layer for downSampling
-        for i in range(levels):
-            # Add the blocks, attentions and downSample
-            blocks = nn.ModuleList()
+        self.encoder.load_state_dict(embedder_state_dict)
 
-            if Block is not None:
-                for _ in range(n_layer_blocks):
-                    blocks.append(
-                        Block(
-                            in_channels=channels,
-                            out_channels=channels_list[i],
-                        ))
-
-                channels = channels_list[i]
-
-            down = nn.Module()
-            down.blocks = blocks
-
-            # Down-sampling at the end of each top level block except the last
-            if i != levels - 1:
-                down.downSample = DownSample(channels=channels)
-            else:
-                down.downSample = nn.Identity()
-
-            #
-            self.embedder.append(down)
-
-        # output embedder
-        self.embedder_output = nn.Sequential(
-            nn.GroupNorm(num_groups=32, num_channels=channels),
-            nn.SiLU(inplace=True),
-            nn.Conv2d(in_channels=channels,
-                      out_channels=d_embed,
-                      kernel_size=3,
-                      stride=1,
-                      padding=1),
-        )
+        if freeze:        
+            self.encoder.eval().requires_grad_(False)
 
     def forward(self, x: Tensor) -> Tensor:
+        """_summary_
+
+        Args:
+            x (Tensor): is the image tensor with shape `[batch_size, img_channels, img_height, img_width]`
+
+        Returns:
+            Tensor: _description_
         """
-        x: is the image tensor with shape `[batch_size, img_channels, img_height, img_width]`
-        """
 
-        # input convolution
-        x = self.embedder_input(x)
-
-        # Top-level blocks
-        for embedder in self.embedder:
-            # Blocks
-            for block in embedder.blocks:
-                x = block(x)
-            # Down-sampling
-            x = embedder.downSample(x)
-
-        x = self.embedder_output(x)
-
-        #
-        return x
+        return self.encoder(x)
 
 
 if __name__ == "__main__":
-    x = torch.randn(2, 3, 32, 32)
-    embedder = ImageEmbedder(in_channels=3)
+    x = torch.randn(2, 1, 128, 128)
+    embedder = ImageEmbedder(img_channels=1,
+                             base_channels=64,
+                             d_embed=1,
+                             autoencoder_weight_path="last.ckpt")
     out = embedder(x)
 
     print('***** Embedder *****')

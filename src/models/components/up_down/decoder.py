@@ -46,8 +46,9 @@ class Decoder(nn.Module):
         # block to upSample
         Block = init_block(block)
 
-         # attention layer
-        Attention = init_attention(attention)
+        # attention layer
+        Attention = init_attention(
+            attention) if attention is not None else None
 
         # Number of channels in the  top-level block
         channels = channels_list[-1]
@@ -62,7 +63,7 @@ class Decoder(nn.Module):
         # mid block with attention
         self.mid = nn.Sequential(
             Block(channels, channels),
-            Attention(channels=channels),
+            Attention(channels=channels) if attention is not None else Block(in_channels=channels),
             Block(channels, channels),
         )
 
@@ -131,8 +132,8 @@ class Decoder(nn.Module):
         return x
     
 if __name__ == "__main__":
-    x = torch.randn(2, 32, 8, 8)
-    decoder = Decoder(out_channels=3)
+    x = torch.randn(2, 3, 8, 8)
+    decoder = Decoder(out_channels=3, attention=None)
     out = decoder(x)
 
     print('***** Decoder *****')

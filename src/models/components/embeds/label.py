@@ -16,7 +16,7 @@ class LabelEmbedder(nn.Module):
 
 if __name__ == "__main__":
     x = torch.randint(0, 10, (2, ))
-    labelEmbedder = LabelEmbedder(n_classes=10, d_cond=64)
+    labelEmbedder = LabelEmbedder(n_classes=10, d_embed=64)
     out = labelEmbedder(x)
 
     print('***** LabelEmbedder *****')

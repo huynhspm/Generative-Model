@@ -50,7 +50,8 @@ class Encoder(nn.Module):
         Block = init_block(block)
 
         # attention layer
-        Attention = init_attention(attention)
+        Attention = init_attention(
+            attention) if attention is not None else None
 
         # Input convolution
         self.encoder_input = nn.Conv2d(in_channels=in_channels,
@@ -90,7 +91,7 @@ class Encoder(nn.Module):
         # mid block with attention
         self.mid = nn.Sequential(
             Block(in_channels=channels),
-            Attention(channels=channels),
+            Attention(channels=channels) if attention is not None else Block(in_channels=channels),
             Block(in_channels=channels),
         )
 
@@ -133,7 +134,7 @@ class Encoder(nn.Module):
 
 if __name__ == "__main__":
     x = torch.randn(2, 3, 32, 32)
-    encoder = Encoder(in_channels=3)
+    encoder = Encoder(in_channels=3, attention=None)
     out = encoder(x)
 
     print('***** Encoder *****')
