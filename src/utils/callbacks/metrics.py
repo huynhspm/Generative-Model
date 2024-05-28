@@ -110,6 +110,7 @@ class Metrics(Callback):
         #convert range (-1, 1) to (0, 1)
         return (image * self.std + self.mean).clamp(0, 1)
 
+    @torch.no_grad()  # for VAE forward
     def get_sample(self,
                    pl_module: LightningModule,
                    reals: Tensor | None = None,
@@ -173,7 +174,7 @@ class Metrics(Callback):
 
         if self.boundary_variance is not None:
             boundary = variance > 0
-            boundary_variance = ((boundary).sum(dim=[1, 2, 3]) +
+            boundary_variance = ((variance).sum(dim=[1, 2, 3]) +
                                  1) / (boundary.sum(dim=[1, 2, 3]) + 1)
             self.boundary_variance.to(device)
             self.boundary_variance.update(boundary_variance)

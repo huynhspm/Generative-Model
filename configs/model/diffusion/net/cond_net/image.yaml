@@ -1,0 +1,10 @@
+_target_: src.models.components.embeds.ImageEmbedder
+
+img_channels: 3
+d_embed: 3
+base_channels: 64
+block: Residual
+n_layer_blocks: 1
+channel_multipliers: [1, 2, 4]
+attention: Attention
+autoencoder_weight_path: null

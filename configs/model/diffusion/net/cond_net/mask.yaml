@@ -1,4 +1,0 @@
-_target_: src.models.components.embeds.MaskEmbedding
-
-in_channels: 1
-d_cond: 256
