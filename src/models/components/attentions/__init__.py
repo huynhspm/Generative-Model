@@ -1,5 +1,5 @@
-from .attention import AttnBlock
-from .attn import AttentionBlock
+from .attention1 import AttnBlock
+from .attention import AttentionBlock
 from .multi_head_attention import SABlock, CABlock
 from .spatial_transfomer import SpatialTransformer
 

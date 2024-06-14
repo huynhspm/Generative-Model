@@ -1,4 +1,4 @@
-from typing import Any, Tuple, List
+from typing import Any, Tuple, List, Dict
 
 import matplotlib.pyplot as plt
 import seaborn as sns
@@ -37,89 +37,42 @@ class GenSample(Callback):
         self.std = std
         self.n_ensemble = n_ensemble
 
-        self.images = {
-            'train': None,
-            'val': None,
-            'test': None,
-        }
-
-        self.conds = {
-            'train': None,
-            'val': None,
-            'test': None,
-        }
-
     # train
-    def on_train_epoch_start(self, trainer: Trainer,
-                             pl_module: LightningModule) -> None:
-        self.images['train'] = None
-        self.conds['train'] = None
-
     def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule,
                            outputs: Any, batch: Any, batch_idx: int) -> None:
-        self.store_data(batch, mode='train')
-
-    def on_train_epoch_end(self, trainer: Trainer, pl_module: LightningModule):
-        self.sample(pl_module, mode='train')
+        if batch_idx == 0:
+            self.sample(pl_module, batch, mode="train")
 
     # validation
-    def on_validation_epoch_start(self, trainer: Trainer,
-                                  pl_module: LightningModule) -> None:
-        self.images['val'] = None
-        self.conds['val'] = None
-
     def on_validation_batch_end(self, trainer: Trainer,
                                 pl_module: LightningModule, outputs: Any,
                                 batch: Any, batch_idx: int,
                                 dataloader_idx: int) -> None:
-        self.store_data(batch, mode='val')
-
-    def on_validation_epoch_end(self, trainer: Trainer,
-                                pl_module: LightningModule):
-        self.sample(pl_module, mode='val')
+        if batch_idx == 0:
+            self.sample(pl_module, batch, mode="val")
 
     # test
-    def on_test_epoch_start(self, trainer: Trainer,
-                            pl_module: LightningModule) -> None:
-        self.images['test'] = None
-        self.conds['test'] = None
-
     def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule,
                           outputs: Any, batch: Any, batch_idx: int,
                           dataloader_idx: int) -> None:
-        self.store_data(batch, mode='test')
-
-    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule):
-        self.sample(pl_module, mode='test')
-
-    def store_data(self, batch: Any, mode: str):
-        if self.images[mode] is None:
-            self.images[mode] = batch[0]
-            self.conds[mode] = batch[1]
-        elif self.images[mode].shape[
-                0] < self.grid_shape[0] * self.grid_shape[1]:
-            self.images[mode] = torch.cat((self.images[mode], batch[0]), dim=0)
-
-            for key in self.conds[mode].keys():
-                self.conds[mode][key] = torch.cat(
-                    (self.conds[mode][key], batch[1][key]), dim=0)
+        if batch_idx == 0:
+            self.sample(pl_module, batch, mode="test")
 
     def rescale(self, image: Tensor):
         #convert range (-1, 1) to (0, 1)
         return (image * self.std + self.mean).clamp(0, 1)
 
     @torch.no_grad()  # for VAE forward
-    def sample(self, pl_module: LightningModule, mode: str):
-        # for eval before resuming training: store data not enough to grid
-        if self.images[mode] is None:
-            return
+    def sample(self, pl_module: LightningModule, batch: Any, mode: str):
+        images, conds = batch
 
+        # avoid out of memory
         n_samples = min(self.grid_shape[0] * self.grid_shape[1],
-                        self.images[mode].shape[0])
+                        images.shape[0])
 
         with pl_module.ema_scope():
             if isinstance(pl_module, VAEModule):
-                targets = self.images[mode][:n_samples]
+                targets = images[:n_samples]
                 preds, _ = pl_module.net(targets)  # remove grad
                 samples = pl_module.net.sample(n_samples=n_samples,
                                                device=pl_module.device)
@@ -134,18 +87,19 @@ class GenSample(Callback):
                                 caption=['samples', 'recons_img', 'target'])
 
             elif isinstance(pl_module, DiffusionModule):
-                reals = self.images[mode][:n_samples]
-                conds = {
-                    key: self.conds[mode][key][:n_samples]
-                    for key in self.conds[mode].keys()
-                } if isinstance(pl_module, ConditionDiffusionModule) else None
+                reals = images[:n_samples]
+
+                if isinstance(pl_module, ConditionDiffusionModule):
+                    for key in conds.keys():
+                        conds[key] = conds[key][:n_samples]
 
                 fakes = []
                 for _ in range(self.n_ensemble):
                     samples = pl_module.net.sample(
                         num_sample=n_samples,
                         device=pl_module.device,
-                        cond=None if conds is None else conds.copy())
+                        cond=conds.copy() if isinstance(
+                            pl_module, ConditionDiffusionModule) else None)
                     fakes.append(samples[-1])  # b, c, w, h
 
                 fakes = torch.stack(fakes, dim=1)  # b, n ,c, w, h
@@ -153,12 +107,11 @@ class GenSample(Callback):
                 fakes = self.rescale(fakes)
                 reals = self.rescale(reals)
 
-                # check variance
+                # check variance for segmentation task
                 if self.n_ensemble > 1:
-                    self.compute_variance(pl_module, reals.clone(),
-                                          fakes.clone(), mode)
+                    self.compute_variance(pl_module, reals, fakes, conds, mode)
 
-                # ensemble
+                # ensemble. If generation task, only 1 sample -> ensemble to unsqueeze dim 1
                 fakes = fakes.mean(dim=1)  # b, c, w, h
 
                 self.log_sample(
@@ -170,34 +123,34 @@ class GenSample(Callback):
                     caption=['fake', 'real', 'cond'] if conds is not None
                     and 'image' in conds.keys() else ['fake', 'real'])
 
-        self.interpolation(pl_module=pl_module, mode=mode)
+        if images.shape[0] > 1:
+            self.interpolation(pl_module=pl_module, images=images[:2],mode=mode)
 
     def compute_variance(self,
                          pl_module: ConditionDiffusionModule,
                          reals: Tensor,
                          fakes: Tensor,
-                         mode: str,
+                         conds: Dict[str, Tensor],
+                         mode: str, 
                          n_images: int = 6):
         ensemble = fakes.mean(dim=1)
-        preds = (fakes > 0.5).to(torch.float64)
-        fake_variance = preds.var(dim=1)
+        fake_variance = ((fakes > 0.5).to(torch.float64)).var(dim=1)
+        _, c, w, h = reals.shape
 
-        if fake_variance.shape[0] < n_images: return
-
+        # only get n_images to log variance
+        n_images = min(n_images, reals.shape[0])
+        _reals = reals[:n_images]
         ensemble = ensemble[:n_images]
         fake_variance = fake_variance[:n_images]
-        fakes = fakes[:n_images]
-        reals = reals[:n_images]
-        conds = self.conds[mode]['image'][:n_images]
-        conds = self.rescale(conds)
+        _conds = conds['image'][:n_images]
+        _fakes = fakes[:n_images].reshape(-1, c, w, h)
 
         # log heatmap
         self.log_heatmap(fake_variance, pl_module, mode, 'fake')
 
+        
         # log ensemble
-        _, c, w, h = reals.shape
-        fakes = fakes.reshape(-1, c, w, h)
-        images = [fakes, ensemble, fake_variance, reals, conds]
+        images = [_fakes, ensemble, fake_variance, _reals, _conds]
         captions = ['fake', 'ensemble', 'fake-variance', 'real', 'cond']
 
         if images[-1].shape[0] == 4:
@@ -212,9 +165,9 @@ class GenSample(Callback):
             caption[-1] = ['t1']
             caption += ['t1ce', 't2', 'flair']
 
-        if 'masks' in self.conds[mode].keys():
+        if 'masks' in conds.keys():
             # batch, 4, w, h
-            masks = self.conds[mode]['masks'][:n_images]
+            masks = conds['masks'][:n_images]
             masks = self.rescale(masks)
 
             # batch, 4, c, w, h -> b*4, c ,w, h
@@ -276,9 +229,7 @@ class GenSample(Callback):
                                    images=images,
                                    caption=caption)
 
-    def interpolation(self, pl_module: LightningModule, mode: str):
-
-        images = self.images[mode][0:2]
+    def interpolation(self, pl_module: LightningModule, images: Tensor, mode: str):
         max_step = 24
         alphas = [t / max_step for t in range(1, max_step, 1)]
 

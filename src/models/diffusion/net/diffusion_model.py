@@ -182,6 +182,8 @@ class DiffusionModel(nn.Module):
             xt = self.sampler.reverse_step(model_output, t, xt, noise,
                                            repeat_noise)
 
+            # for save memory only return the last images
+            # if i + 1 == len(self.sampler.timesteps):
             if i % self.gif_frequency == 0 or i + 1 == len(
                     self.sampler.timesteps):
                 gen_samples.append(xt)
