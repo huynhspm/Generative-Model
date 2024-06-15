@@ -1,10 +1,10 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/condition_diffusion/isic2018
+# python train.py experiment=generation/condition_diffusion/edge_coco
 
 defaults:
-  - override /data: isic2018.yaml
+  - override /data: edge_coco.yaml
   - override /model: diffusion/condition_diffusion_module.yaml
   - override /callbacks: diffusion.yaml
   - override /trainer: ddp.yaml
@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_generation_diffusion"
+task_name: "generation_diffusion/train"
 
 trainer:
   max_epochs: 2000
@@ -24,20 +24,24 @@ trainer:
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 8
-  num_workers: 20
+  batch_size: 16
+  num_workers: 10
 
 model:
+  img_dims:
+    - 3
+    - ${data.image_size}
+    - ${data.image_size}
   net:
     denoise_net:
-      img_channels: 3
-      n_layer_blocks: 2
+      base_channels: 128
       channel_multipliers: [1, 2, 4, 4]
+      d_cond_image: 1 # edge image
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "diffusion"
+    project: "generation_diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

@@ -1,11 +1,11 @@
-from .attention1 import AttnBlock
+from .attn import AttnBlock
 from .attention import AttentionBlock
 from .multi_head_attention import SABlock, CABlock
 from .spatial_transfomer import SpatialTransformer
 
 Attentions = {
-    "Attention": AttnBlock,
-    "Attn-cifar10": AttentionBlock,
+    "Attn": AttnBlock, # test for cifar10
+    "Attention": AttentionBlock,
     "SelfAttention": SABlock,
     "Transformer": SpatialTransformer,
     "CrossAttention": CABlock,

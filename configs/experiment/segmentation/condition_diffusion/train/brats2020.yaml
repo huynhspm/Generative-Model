@@ -33,7 +33,6 @@ model:
     denoise_net:
       channel_multipliers: [1, 2, 4, 4]
       d_cond_image: 4
-    classifier_free: false
 
 logger:
   wandb:

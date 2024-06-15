@@ -29,10 +29,7 @@ model:
   optimizer:
     lr: 2.0e-05
   net:
-    img_dims:
-      - 1
-      - 64
-      - 64
+    img_dims: [1, 64, 64]
     denoise_net:
       base_channels: 128
       channel_multipliers: [1, 2, 4, 4]
@@ -43,7 +40,6 @@ model:
       d_embed: 3
       channel_multipliers: [1, 2, 4]
     autoencoder_weight_path: null
-    classifier_free: false
 
 logger:
   wandb:

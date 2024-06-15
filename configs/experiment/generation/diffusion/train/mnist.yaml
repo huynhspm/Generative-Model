@@ -1,10 +1,10 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/diffusion/fashion
+# python train.py experiment=generation/diffusion/mnist
 
 defaults:
-  - override /data: fashion.yaml
+  - override /data: mnist.yaml
   - override /model: diffusion/diffusion_module.yaml
   - override /callbacks: diffusion.yaml
   - override /trainer: ddp.yaml
@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_generation_diffusion"
+task_name: "generation_diffusion/train"
 
 trainer:
   max_epochs: 100
@@ -25,20 +25,22 @@ trainer:
 
 data:
   batch_size: 256
-  num_workers: 20
+  num_workers: 10
 
 model:
   scheduler:
     warm_up_steps: 100
   net:
     denoise_net:
+      base_channels: 128
       n_layer_blocks: 2
-      channel_multipliers: [1, 2, 4, 4]
+      channel_multipliers: [1, 2, 2, 2]
+      attention_levels: [1] # resolution 16
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "diffusion"
+    project: "generation_diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

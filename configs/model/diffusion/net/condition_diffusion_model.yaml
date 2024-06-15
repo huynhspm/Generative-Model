@@ -1,8 +1,5 @@
 defaults:
   - diffusion_model
-  # - label_embedder: cond_net/label.yaml
-  # - image_embedder: cond_net/image.yaml
-  # - text_embedder: cond_net/text.yaml
 
 _target_: src.models.diffusion.net.ConditionDiffusionModel
 label_embedder: null

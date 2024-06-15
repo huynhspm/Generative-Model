@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_generation_diffusion"
+task_name: "generation_diffusion/train"
 
 trainer:
   max_epochs: 2000
@@ -25,18 +25,13 @@ trainer:
 
 data:
   batch_size: 16
-  num_workers: 20
+  num_workers: 10
 
 model:
-  optimizer:
-    lr: 2.0e-05
   net:
-    img_dims:
-      - 3
-      - 64
-      - 64
+    img_dims: [3, 64, 64]
     denoise_net:
-      channels: 128
+      base_channels: 128
       n_layer_blocks: 2
       channel_multipliers: [1, 2, 4, 4]
     autoencoder_weight_path: null
@@ -44,7 +39,7 @@ model:
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "diffusion"
+    project: "generation_diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

@@ -1,4 +1,4 @@
 _target_: src.models.components.embeds.LabelEmbedder
 
-in_channels: 10
-d_cond: 64
+n_classes: 10
+d_embed: 64

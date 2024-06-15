@@ -30,12 +30,9 @@ data:
 
 model:
   optimizer:
-    lr: 2.0e-05
+    lr: 1.0e-05
   net:
-    img_dims:
-      - 1
-      - 32
-      - 32
+    img_dims: [1, 32, 32]
     denoise_net:
       base_channels: 128
       channel_multipliers: [1, 2, 4, 4]

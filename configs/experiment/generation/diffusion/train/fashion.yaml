@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/condition_diffusion/sketch_celeba
+# python train.py experiment=generation/diffusion/fashion
 
 defaults:
-  - override /data: sketch_celeba.yaml
-  - override /model: diffusion/condition_diffusion_module.yaml
+  - override /data: fashion.yaml
+  - override /model: diffusion/diffusion_module.yaml
   - override /callbacks: diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -15,29 +15,32 @@ defaults:
 
 seed: 12345
 
-task_name: "train_generation_diffusion"
+task_name: "generation_diffusion/train"
 
 trainer:
-  max_epochs: 2000
+  max_epochs: 100
   devices: 1
   check_val_every_n_epoch: 5
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 16
-  num_workers: 20
+  batch_size: 256
+  num_workers: 10
 
 model:
+  scheduler:
+    warm_up_steps: 100
   net:
     denoise_net:
-      img_channels: 3
+      base_channels: 128
       n_layer_blocks: 2
-      channel_multipliers: [1, 2, 4, 4]
-      d_cond_image: 3
+      channel_multipliers: [1, 2, 2, 2]
+      attention_levels: [1] # resolution 16
+
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "diffusion"
+    project: "generation_diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
@@ -45,7 +48,5 @@ logger:
 ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
-  gen_sample:
-    grid_shape: [5, 5]
   metrics:
     IS: null

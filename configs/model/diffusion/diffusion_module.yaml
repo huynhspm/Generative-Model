@@ -5,7 +5,7 @@ use_ema: true
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 0.0002
+  lr: 1e-4
   weight_decay: 0.0
 
 scheduler:
@@ -17,14 +17,14 @@ net:
 
   n_train_steps: 1000 # the number of diffusion step
   img_dims:
-    - ${model.net.denoise_net.in_channels}
+    - 1
     - ${data.image_size}
     - ${data.image_size}
   denoise_net:
     _target_: src.models.unet.net.UNetAttention
 
-    in_channels: 1 # the channel count of the input
-    out_channels: 1 # the channel count of the output
+    in_channels: ${model.net.img_dims[0]} # the channel count of the input
+    out_channels: ${model.net.img_dims[0]} # the channel count of the output
     base_channels: 64 # the base channel count for the model
     block: Residual # type of blocks for each level
     n_layer_blocks: 1 # number of blocks at each level
