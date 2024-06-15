@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/diffusion/cifar10
+# python train.py experiment=generation/diffusion/train/cifar10
 
 defaults:
   - override /data: cifar10.yaml

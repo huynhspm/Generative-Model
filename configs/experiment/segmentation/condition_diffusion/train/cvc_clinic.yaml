@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_segmentation_diffusion"
+task_name: "segmentation_diffusion/train"
 
 trainer:
   max_epochs: 1000
@@ -43,7 +43,7 @@ model:
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "segmentation-diffusion"
+    project: "segmentation_diffusion"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

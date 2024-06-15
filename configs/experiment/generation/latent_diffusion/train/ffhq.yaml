@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/latent_diffusion/ffhq
+# python train.py experiment=generation/latent_diffusion/train/ffhq
 
 defaults:
   - override /data: ffhq.yaml

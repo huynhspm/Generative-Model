@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/condition_diffusion/sketch_coco
+# python train.py experiment=generation/condition_diffusion/train/sketch_coco
 
 defaults:
   - override /data: sketch_coco.yaml

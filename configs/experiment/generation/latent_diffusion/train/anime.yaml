@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/latent_diffusion/anime
+# python train.py experiment=generation/latent_diffusion/train/anime
 
 defaults:
   - override /data: anime.yaml
