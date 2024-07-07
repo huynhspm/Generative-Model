@@ -31,9 +31,9 @@ data:
 model:
   net:
     img_dims:
-    - 3
-    - ${data.image_size}
-    - ${data.image_size}
+      - 3
+      - ${data.image_size}
+      - ${data.image_size}
     denoise_net:
       base_channels: 128
       n_layer_blocks: 2

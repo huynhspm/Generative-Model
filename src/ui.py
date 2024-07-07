@@ -54,7 +54,7 @@ def inference(sampler: str, image: np.array, target: np.array):
         # [b, c, w, h]
         masks.append(samples[-1])
 
-    #  # (n, b, c, w, h) -> (n, c, w, h)
+    #  (n, b, c, w, h) -> (n, c, w, h)
     masks = torch.stack(masks, dim=0).squeeze(dim=1)
 
     # convert (-1, 1) to (0, 1)

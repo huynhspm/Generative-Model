@@ -2,7 +2,7 @@ import math
 import torch
 import torch.nn as nn
 
-class TimeEmbedding(nn.Module):
+class TimeEmbedder(nn.Module):
     def __init__(self,  
                  d_model: int, 
                  dim: int, 
@@ -31,9 +31,9 @@ class TimeEmbedding(nn.Module):
     
 if __name__ == '__main__':
 
-    timeEmbedding = TimeEmbedding(d_model=10, dim=64)
+    timeEmbedder = TimeEmbedder(d_model=10, dim=64)
     timesteps = torch.arange(0, 1000)
-    te = timeEmbedding(timesteps)
+    te = timeEmbedder(timesteps)
     print(te.shape)
 
     import matplotlib.pyplot as plt

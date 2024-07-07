@@ -17,7 +17,7 @@ class AttentionBlock(nn.Module):
         self.proj = nn.Conv2d(in_ch, in_ch, 1, stride=1, padding=0)
         self.initialize()
 
-    def forward(self, x):
+    def forward(self, x, cond=None):
         B, C, H, W = x.shape
         h = self.group_norm(x)
         q = self.proj_q(h)

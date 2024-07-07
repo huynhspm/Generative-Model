@@ -2,6 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/unet.html
 class UpSample(nn.Module):
     """
     ### Up-sampling layer

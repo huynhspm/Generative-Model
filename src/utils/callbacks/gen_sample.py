@@ -254,6 +254,9 @@ class GenSample(Callback):
                                   pl_module.net.sampler, DDPMSampler):
                     return
 
+                # todo fix interpolation for diffusion
+                return
+            
                 time_step = 50
                 sample_steps = torch.tensor([time_step] * 2,
                                             dtype=torch.int64,
@@ -267,7 +270,7 @@ class GenSample(Callback):
                 interpolated_z = torch.stack(interpolated_z, dim=0)
 
                 sample_steps = torch.arange(0, time_step, 1)
-                gen_samples = pl_module.net.sampler.reverse_step(
+                gen_samples = pl_module.net.sample(
                     interpolated_z, sample_steps=sample_steps)
                 interpolated_img = gen_samples[-1]
 

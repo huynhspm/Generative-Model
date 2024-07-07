@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 from torch import Tensor
 
-
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/unet.html
 class ResidualBlock(nn.Module):
     """
     ### Residual block of resnet backbone

@@ -28,11 +28,11 @@ data:
   num_workers: 10
 
 model:
-  img_dims:
-    - 3
-    - ${data.image_size}
-    - ${data.image_size}
   net:
+    img_dims:
+      - 3
+      - ${data.image_size}
+      - ${data.image_size}
     denoise_net:
       base_channels: 128
       channel_multipliers: [1, 2, 4, 4]

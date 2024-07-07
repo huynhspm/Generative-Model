@@ -1,6 +1,7 @@
 import torch
 import torch.nn as nn
 
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/unet.html
 class DownSample(nn.Module):
     """
     ### Down-sampling layer

@@ -9,7 +9,7 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.components.blocks import init_block, get_all_blocks
 from src.models.components.attentions import init_attention, get_all_attentions
-from src.models.components.embeds import TimeEmbedding
+from src.models.components.embeds import TimeEmbedder
 from src.models.components.up_down import DownSample, UpSample
 
 
@@ -55,7 +55,7 @@ class UNetAttention(nn.Module):
         d_time_emb = base_channels * channel_multipliers[-1]
 
         # layer for time embeddings
-        self.time_embed = TimeEmbedding(base_channels, d_time_emb)
+        self.time_embedder = TimeEmbedder(base_channels, d_time_emb)
 
         # number of levels (downSample and upSample)
         levels = len(channel_multipliers)
@@ -204,7 +204,7 @@ class UNetAttention(nn.Module):
         """
 
         # get time step embeddings
-        t_emb = self.time_embed(time_steps)
+        t_emb = self.time_embedder(time_steps)
         text_embed = None
 
         if cond is not None:

@@ -1,17 +1,3 @@
-"""
----
-title: Transformer for Stable Diffusion U-Net
-summary: >
- Annotated PyTorch implementation/tutorial of the transformer
- for U-Net in stable diffusion.
----
-# Transformer for Stable Diffusion [U-Net](unet.html)
-This implements the transformer module used in [U-Net](unet.html) that
- gives $\epsilon_\text{cond}(x_t, c)$
-We have kept to the model definition and naming unchanged from
-[CompVis/stable-diffusion](https://github.com/CompVis/stable-diffusion)
-so that we can load the checkpoints directly.
-"""
 
 from typing import Optional
 
@@ -19,6 +5,7 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/unet.html
 
 class SpatialTransformer(nn.Module):
     """

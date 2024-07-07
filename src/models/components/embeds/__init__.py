@@ -1,3 +1,3 @@
 from .image import ImageEmbedder
 from .label import LabelEmbedder
-from .time import TimeEmbedding
+from .time import TimeEmbedder

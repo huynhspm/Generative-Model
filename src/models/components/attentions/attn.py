@@ -32,7 +32,7 @@ class AttnBlock(nn.Module):
         # Attention scaling factor
         self.scale = channels**-0.5
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, cond=None):
         """
         x: is the tensor of shape `[batch_size, channels, height, width]`
         """
