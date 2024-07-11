@@ -4,7 +4,7 @@ import torch
 import pyrootutils
 from torch import Tensor
 import pytorch_lightning as pl
-from torch.utils.data import DataLoader, Dataset, random_split
+from torch.utils.data import DataLoader, Dataset, Subset, random_split
 from albumentations import Compose
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
@@ -148,6 +148,11 @@ class DiffusionDataModule(pl.LightningDataModule):
                 dataset = init_dataset(self.hparams.dataset_name,
                                        data_dir=self.hparams.data_dir)
 
+                # for testing code before training
+                len_dataset = sum(self.hparams.train_val_test_split)
+                if 1 < len_dataset and len_dataset < len(dataset):
+                    dataset = Subset(dataset, list(range(len_dataset)))
+
                 train_set, val_set, test_set = random_split(
                     dataset=dataset,
                     lengths=self.hparams.train_val_test_split,
@@ -205,7 +210,7 @@ class DiffusionDataModule(pl.LightningDataModule):
 
 
 if __name__ == "__main__":
-    import hydra
+    import hydra    
     from omegaconf import DictConfig
 
     root = pyrootutils.find_root(search_from=__file__,

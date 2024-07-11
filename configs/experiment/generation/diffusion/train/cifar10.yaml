@@ -24,7 +24,7 @@ trainer:
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 128
+  batch_size: 128 # GPU 16G
   num_workers: 10
 
 model:

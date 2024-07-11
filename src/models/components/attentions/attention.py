@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 
-
+#Follow https://github.com/w86763777/pytorch-ddpm/blob/master/model.py
 class AttentionBlock(nn.Module):
     """
     ## Attention block
