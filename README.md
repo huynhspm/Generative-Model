@@ -119,11 +119,11 @@ Diffusion model is a type of generative model. Its approach is different from GA
 
 ### **4.2. Conditional Diffusion**
 
-| Dataset  | Image-Size | FID (features=2048) | Config |
+| Dataset  | Image-Size | FID (features=2048, ddim -> ddpm) | Config |
 | :---: | :---: | :---: | :---:|
-| Mnist |  32x32  | 3.86 | [Train](configs/experiment/generation/condition_diffusion/train/mnist.yaml), [Eval](configs/experiment/generation/condition_diffusion/eval/mnist.yaml)|
-| Fashion-Mnist | 32x32 | 3. | [Train](configs/experiment/generation/condition_diffusion/train/fashion.yaml), [Eval](configs/experiment/generation/condition_diffusion/eval/fashion.yaml)|
-| Cifar10 | 32x32 | 3. | [Train](configs/experiment/generation/condition_diffusion/train/cifar10.yaml), [Eval](configs/experiment/generation/condition_diffusion/eval/cifar10.yaml) |
+| Mnist |  32x32  | 3.91 -> 1.16 | [Train](configs/experiment/generation/condition_diffusion/train/mnist.yaml), [Eval](configs/experiment/generation/condition_diffusion/eval/mnist.yaml)|
+| Fashion-Mnist | 32x32 | 3.10 -> 2.15 | [Train](configs/experiment/generation/condition_diffusion/train/fashion.yaml), [Eval](configs/experiment/generation/condition_diffusion/eval/fashion.yaml)|
+| Cifar10 | 32x32 | 5.66 -> 3.37 | [Train](configs/experiment/generation/condition_diffusion/train/cifar10.yaml), [Eval](configs/experiment/generation/condition_diffusion/eval/cifar10.yaml) |
 | Gender | 64x64 | 3. | [Train](configs/experiment/generation/condition_diffusion/train), [Eval](configs/experiment/generation/condition_diffusion/eval/) |
 | CelebA | 64x64 | 3. | [Train](configs/experiment/generation/condition_diffusion/train/), [Eval](configs/experiment/generation/condition_diffusion/eval/) |
   

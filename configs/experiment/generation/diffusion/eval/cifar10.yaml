@@ -40,6 +40,10 @@ model:
       n_attention_layers: null
       attention_levels: [1] # resolution 16
       drop_rate: 0.1
+    sampler:
+      _target_: src.models.diffusion.sampler.DDPMSampler
+      n_train_steps: ${model.net.n_train_steps}
+      beta_schedule: linear
 
 logger:                                                                                                                                                                                                                                                                                                                                         
   wandb:

@@ -64,7 +64,7 @@ class GenSample(Callback):
 
     @torch.no_grad()  # for VAE forward
     def sample(self, pl_module: LightningModule, batch: Any, mode: str):
-        images, conds = batch
+        images, _ = batch
 
         # avoid out of memory
         n_samples = min(self.grid_shape[0] * self.grid_shape[1],
@@ -89,9 +89,9 @@ class GenSample(Callback):
             elif isinstance(pl_module, DiffusionModule):
                 reals = images[:n_samples]
 
+                conds = None
                 if isinstance(pl_module, ConditionDiffusionModule):
-                    for key in conds.keys():
-                        conds[key] = conds[key][:n_samples]
+                    conds = {key: value[:n_samples] for key, value in batch[1].items()}
 
                 fakes = []
                 for _ in range(self.n_ensemble):

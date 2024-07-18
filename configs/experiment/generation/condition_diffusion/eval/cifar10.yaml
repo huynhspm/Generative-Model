@@ -21,8 +21,10 @@ trainer:
   devices: 1
   
 data:
-  batch_size: 128
+  batch_size: 512 # # for GPU 16G
   num_workers: 10
+  train_val_test_split: [5_000, 5_000, 50_000] # test with 50.000 samples
+
 
 model:
   net:
@@ -43,6 +45,10 @@ model:
       _target_: src.models.components.embeds.LabelEmbedder
       n_classes: ${data.n_classes}
       d_embed: 256 # = denoise_net.channels * channel_multipliers[-1]
+    sampler:
+      _target_: src.models.diffusion.sampler.DDPMSampler
+      n_train_steps: ${model.net.n_train_steps}
+      beta_schedule: linear
 
 logger:
   wandb:
