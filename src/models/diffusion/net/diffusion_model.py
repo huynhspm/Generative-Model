@@ -134,6 +134,8 @@ class DiffusionModel(nn.Module):
 
         # xt ~ N(0, I)
         if xt is None:
+            assert num_sample, "num_sample is None"
+        
             xt = noise_like([num_sample] + list(self.img_dims),
                             device=device,
                             repeat=repeat_noise)

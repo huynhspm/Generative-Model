@@ -11,6 +11,7 @@ from src.models.components.blocks import init_block
 from src.models.components.attentions import init_attention
 from src.models.components.up_down import DownSample
 
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/autoencoder.html
 
 class Encoder(nn.Module):
     """
@@ -64,7 +65,7 @@ class Encoder(nn.Module):
 
         # Prepare layer for downSampling
         for i in range(levels):
-            # Add the blocks, attentions and downSample
+            # Add the blocks and downSample
             blocks = nn.ModuleList()
 
             for _ in range(n_layer_blocks):

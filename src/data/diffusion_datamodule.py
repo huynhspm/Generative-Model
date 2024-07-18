@@ -84,7 +84,7 @@ class DiffusionDataModule(pl.LightningDataModule):
         dataset_name: str = 'mnist',
         n_classes: str = 10,
         image_size: int = 32,
-    ):
+    ) -> None:
         """
         data_dir: 
         train_val_test_split: 
@@ -107,26 +107,38 @@ class DiffusionDataModule(pl.LightningDataModule):
         self.data_test: Optional[Dataset] = None
 
     @property
-    def num_classes(self):
+    def num_classes(self) -> int:
         return self.hparams.n_classes
 
     @property
-    def image_size(self):
+    def image_size(self) -> int:
         return self.hparams.image_size
 
-    def prepare_data(self):
+    def prepare_data(self) -> None:
         """Download data if needed.
 
         Do not use it to assign state (self.x = y).
         """
         pass
 
-    def setup(self, stage: Optional[str] = None):
+    def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
 
-        This method is called by lightning with both `trainer.fit()` and `trainer.test()`, so be
-        careful not to execute things like random split twice!
+        This method is called by Lightning before `trainer.fit()`, `trainer.validate()`, `trainer.test()`, and
+        `trainer.predict()`, so be careful not to execute things like random split twice! Also, it is called after
+        `self.prepare_data()` and there is a barrier in between which ensures that all the processes proceed to
+        `self.setup()` once the data is prepared and available for use.
+
+        :param stage: The stage to setup. Either `"fit"`, `"validate"`, `"test"`, or `"predict"`. Defaults to ``None``.
         """
+        # Divide batch size by the number of devices.
+        if self.trainer is not None:
+            if self.hparams.batch_size % self.trainer.world_size != 0:
+                raise RuntimeError(
+                    f"Batch size ({self.hparams.batch_size}) is not divisible by the number of devices ({self.trainer.world_size})."
+                )
+            self.batch_size_per_device = self.hparams.batch_size // self.trainer.world_size
+            
         # load and split datasets only if not loaded already
         if not self.data_train and not self.data_val and not self.data_test:
             if self.hparams.train_val_test_dir:
@@ -169,28 +181,40 @@ class DiffusionDataModule(pl.LightningDataModule):
             print('Train-Val-Test:', len(self.data_train), len(self.data_val),
                   len(self.data_test))
 
-    def train_dataloader(self):
+    def train_dataloader(self) -> DataLoader[Any]:
+        """Create and return the train dataloader.
+
+        :return: The train dataloader.
+        """
         return DataLoader(
             dataset=self.data_train,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
             shuffle=True,
         )
 
-    def val_dataloader(self):
+    def val_dataloader(self) -> DataLoader[Any]:
+        """Create and return the validation dataloader.
+
+        :return: The validation dataloader.
+        """
         return DataLoader(
             dataset=self.data_val,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
-            shuffle=True,
+            shuffle=False,
         )
 
-    def test_dataloader(self):
+    def test_dataloader(self) -> DataLoader[Any]:
+        """Create and return the test dataloader.
+
+        :return: The test dataloader.
+        """
         return DataLoader(
             dataset=self.data_test,
-            batch_size=self.hparams.batch_size,
+            batch_size=self.batch_size_per_device,
             num_workers=self.hparams.num_workers,
             pin_memory=self.hparams.pin_memory,
             shuffle=False,

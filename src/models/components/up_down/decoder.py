@@ -11,6 +11,7 @@ from src.models.components.blocks import init_block
 from src.models.components.attentions import init_attention
 from src.models.components.up_down import UpSample
 
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/autoencoder.html
 class Decoder(nn.Module):
     """
     ## Decoder module
@@ -41,7 +42,8 @@ class Decoder(nn.Module):
         # Number of channels at each level
         channels_list = [base_channels * m for m in channel_multipliers]
 
-        channels = base_channels
+        # Number of channels in the  top-level block
+        channels = channels_list[-1]
 
         # block to upSample
         Block = init_block(block)
@@ -49,9 +51,6 @@ class Decoder(nn.Module):
         # attention layer
         Attention = init_attention(
             attention) if attention is not None else None
-
-        # Number of channels in the  top-level block
-        channels = channels_list[-1]
 
         # map z space to image space
         self.decoder_input = nn.Conv2d(in_channels=z_channels,
@@ -72,7 +71,7 @@ class Decoder(nn.Module):
 
         # prepare layer for upSampling
         for i in reversed(range(levels)):
-            # Add the blocks, attentions and upSample
+            # Add the blocks and upSample
             blocks = nn.ModuleList()
 
             for _ in range(n_layer_blocks + 1):

@@ -5,46 +5,35 @@ import torch
 import torch.nn.functional as F
 from torch import nn
 
-# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/unet.html
+# Follow Stable Diffusion: https://nn.labml.ai/diffusion/stable_diffusion/model/unet_attention.html
 
 class SpatialTransformer(nn.Module):
     """
     ## Spatial Transformer
     """
 
-    def __init__(self, channels: int, n_heads: int, n_layers: int):
+    def __init__(self, channels: int, n_heads: int, n_layers: int, d_cond: int):
         """
         :param channels: is the number of channels in the feature map
         :param n_heads: is the number of attention heads
         :param n_layers: is the number of transformer layers
+        :param d_cond: is the size of the conditional embedding
         """
         super().__init__()
         # Initial group normalization
-        self.norm = torch.nn.GroupNorm(num_groups=32,
-                                       num_channels=channels,
-                                       eps=1e-6,
-                                       affine=True)
+        self.norm = torch.nn.GroupNorm(num_groups=32, num_channels=channels, eps=1e-6, affine=True)
         # Initial $1 \times 1$ convolution
-        self.proj_in = nn.Conv2d(channels,
-                                 channels,
-                                 kernel_size=1,
-                                 stride=1,
-                                 padding=0)
+        self.proj_in = nn.Conv2d(channels, channels, kernel_size=1, stride=1, padding=0)
 
         # Transformer layers
-        self.transformer_blocks = nn.ModuleList([
-            BasicTransformerBlock(channels, n_heads, channels // n_heads)
-            for _ in range(n_layers)
-        ])
+        self.transformer_blocks = nn.ModuleList(
+            [BasicTransformerBlock(channels, n_heads, channels // n_heads, d_cond=d_cond) for _ in range(n_layers)]
+        )
 
         # Final $1 \times 1$ convolution
-        self.proj_out = nn.Conv2d(channels,
-                                  channels,
-                                  kernel_size=1,
-                                  stride=1,
-                                  padding=0)
+        self.proj_out = nn.Conv2d(channels, channels, kernel_size=1, stride=1, padding=0)
 
-    def forward(self, x: torch.Tensor, cond: torch.Tensor = None):
+    def forward(self, x: torch.Tensor, cond: torch.Tensor):
         """
         :param x: is the feature map of shape `[batch_size, channels, height, width]`
         :param cond: is the conditional embeddings of shape `[batch_size,  n_cond, d_cond]`
@@ -59,13 +48,13 @@ class SpatialTransformer(nn.Module):
         x = self.proj_in(x)
         # Transpose and reshape from `[batch_size, channels, height, width]`
         # to `[batch_size, height * width, channels]`
-        x = x.permute(0, 2, 3, 1).contiguous().view(b, h * w, c)
+        x = x.permute(0, 2, 3, 1).view(b, h * w, c)
         # Apply the transformer layers
         for block in self.transformer_blocks:
-            x = block(x)
+            x = block(x, cond)
         # Reshape and transpose from `[batch_size, height * width, channels]`
         # to `[batch_size, channels, height, width]`
-        x = x.view(b, h, w, c).permute(0, 3, 1, 2).contiguous()
+        x = x.view(b, h, w, c).permute(0, 3, 1, 2)
         # Final $1 \times 1$ convolution
         x = self.proj_out(x)
         # Add residual
@@ -77,28 +66,35 @@ class BasicTransformerBlock(nn.Module):
     ### Transformer Layer
     """
 
-    def __init__(self, d_model: int, n_heads: int, d_head: int):
+    def __init__(self, d_model: int, n_heads: int, d_head: int, d_cond: int):
         """
         :param d_model: is the input embedding size
         :param n_heads: is the number of attention heads
         :param d_head: is the size of a attention head
+        :param d_cond: is the size of the conditional embeddings
         """
         super().__init__()
         # Self-attention layer and pre-norm layer
         self.attn1 = CrossAttention(d_model, d_model, n_heads, d_head)
         self.norm1 = nn.LayerNorm(d_model)
+        # Cross attention layer and pre-norm layer
+        self.attn2 = CrossAttention(d_model, d_cond, n_heads, d_head)
+        self.norm2 = nn.LayerNorm(d_model)
         # Feed-forward network and pre-norm layer
         self.ff = FeedForward(d_model)
-        self.norm2 = nn.LayerNorm(d_model)
+        self.norm3 = nn.LayerNorm(d_model)
 
-    def forward(self, x: torch.Tensor):
+    def forward(self, x: torch.Tensor, cond: torch.Tensor):
         """
         :param x: are the input embeddings of shape `[batch_size, height * width, d_model]`
+        :param cond: is the conditional embeddings of shape `[batch_size,  n_cond, d_cond]`
         """
         # Self attention
         x = self.attn1(self.norm1(x)) + x
+        # Cross-attention with conditioning
+        x = self.attn2(self.norm2(x), cond=cond) + x
         # Feed-forward network
-        x = self.ff(self.norm2(x)) + x
+        x = self.ff(self.norm3(x)) + x
         #
         return x
 
@@ -106,17 +102,13 @@ class BasicTransformerBlock(nn.Module):
 class CrossAttention(nn.Module):
     """
     ### Cross Attention Layer
+
     This falls-back to self-attention when conditional embeddings are not specified.
     """
 
     use_flash_attention: bool = False
 
-    def __init__(self,
-                 d_model: int,
-                 d_cond: int,
-                 n_heads: int,
-                 d_head: int,
-                 is_inplace: bool = True):
+    def __init__(self, d_model: int, d_cond: int, n_heads: int, d_head: int, is_inplace: bool = True):
         """
         :param d_model: is the input embedding size
         :param n_heads: is the number of attention heads
@@ -132,7 +124,7 @@ class CrossAttention(nn.Module):
         self.d_head = d_head
 
         # Attention scaling factor
-        self.scale = d_head**-0.5
+        self.scale = d_head ** -0.5
 
         # Query, key and value mappings
         d_attn = d_head * n_heads
@@ -181,10 +173,10 @@ class CrossAttention(nn.Module):
         else:
             return self.normal_attention(q, k, v)
 
-    def flash_attention(self, q: torch.Tensor, k: torch.Tensor,
-                        v: torch.Tensor):
+    def flash_attention(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
         """
         #### Flash Attention
+
         :param q: are the query vectors before splitting heads, of shape `[batch_size, seq, d_attn]`
         :param k: are the query vectors before splitting heads, of shape `[batch_size, seq, d_attn]`
         :param v: are the query vectors before splitting heads, of shape `[batch_size, seq, d_attn]`
@@ -208,15 +200,11 @@ class CrossAttention(nn.Module):
         elif self.d_head <= 128:
             pad = 128 - self.d_head
         else:
-            raise ValueError(
-                f'Head size ${self.d_head} too large for Flash Attention')
+            raise ValueError(f'Head size ${self.d_head} too large for Flash Attention')
 
         # Pad the heads
         if pad:
-            qkv = torch.cat(
-                (qkv, qkv.new_zeros(batch_size, seq_len, 3, self.n_heads,
-                                    pad)),
-                dim=-1)
+            qkv = torch.cat((qkv, qkv.new_zeros(batch_size, seq_len, 3, self.n_heads, pad)), dim=-1)
 
         # Compute attention
         # $$\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)V$$
@@ -230,8 +218,7 @@ class CrossAttention(nn.Module):
         # Map to `[batch_size, height * width, d_model]` with a linear layer
         return self.to_out(out)
 
-    def normal_attention(self, q: torch.Tensor, k: torch.Tensor,
-                         v: torch.Tensor):
+    def normal_attention(self, q: torch.Tensor, k: torch.Tensor, v: torch.Tensor):
         """
         #### Normal Attention
         
@@ -246,7 +233,7 @@ class CrossAttention(nn.Module):
         v = v.view(*v.shape[:2], self.n_heads, -1)
 
         # Calculate attention $\frac{Q K^\top}{\sqrt{d_{key}}}$
-        attn = torch.einsum('bihd,bjhd->bhij', q, k).contiguous() * self.scale
+        attn = torch.einsum('bihd,bjhd->bhij', q, k) * self.scale
 
         # Compute softmax
         # $$\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)$$
@@ -259,7 +246,7 @@ class CrossAttention(nn.Module):
 
         # Compute attention output
         # $$\underset{seq}{softmax}\Bigg(\frac{Q K^\top}{\sqrt{d_{key}}}\Bigg)V$$
-        out = torch.einsum('bhij,bjhd->bihd', attn, v).contiguous()
+        out = torch.einsum('bhij,bjhd->bihd', attn, v)
         # Reshape to `[batch_size, height * width, n_heads * d_head]`
         out = out.reshape(*out.shape[:2], -1)
         # Map to `[batch_size, height * width, d_model]` with a linear layer
@@ -277,9 +264,11 @@ class FeedForward(nn.Module):
         :param d_mult: is multiplicative factor for the hidden layer size
         """
         super().__init__()
-        self.net = nn.Sequential(GeGLU(d_model, d_model * d_mult),
-                                 nn.Dropout(0.),
-                                 nn.Linear(d_model * d_mult, d_model))
+        self.net = nn.Sequential(
+            GeGLU(d_model, d_model * d_mult),
+            nn.Dropout(0.),
+            nn.Linear(d_model * d_mult, d_model)
+        )
 
     def forward(self, x: torch.Tensor):
         return self.net(x)
@@ -288,6 +277,7 @@ class FeedForward(nn.Module):
 class GeGLU(nn.Module):
     """
     ### GeGLU Activation
+
     $$\text{GeGLU}(x) = (xW + b) * \text{GELU}(xV + c)$$
     """
 
@@ -305,6 +295,6 @@ class GeGLU(nn.Module):
 
 if __name__ == "__main__":
     input = torch.randn(1, 256, 16, 16)
-    spatialTransformer = SpatialTransformer(256, 16, 1)
+    spatialTransformer = SpatialTransformer(256, 16, 1, 256)
     output = spatialTransformer(input)
     print(output.shape)
