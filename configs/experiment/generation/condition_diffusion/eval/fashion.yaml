@@ -21,7 +21,7 @@ trainer:
   devices: 1
   
 data:
-  batch_size: 512 # GPU 16G
+  batch_size: 512 # for 1 GPU 16G
   num_workers: 10
   train_val_test_split: [10_000, 10_000, 50_000] # test with 50.000 samples
 

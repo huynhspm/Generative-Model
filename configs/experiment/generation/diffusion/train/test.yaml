@@ -24,7 +24,7 @@ trainer:
   gradient_clip_val: 1.0
 
 data:
-  batch_size: 8 # GPU 16G
+  batch_size: 8
   num_workers: 10
   train_val_test_split: [20, 20, 20]
 
