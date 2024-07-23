@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python src/eval.py experiment=segmentation/condition_diffusion/eval/isic2018
+# python src/train.py experiment=segmentation/unet/train/isic2018
 
 defaults:
   - override /data: isic2018.yaml
-  - override /model: diffusion/condition_diffusion_module.yaml
+  - override /model: unet/unet_module.yaml
   - override /callbacks: segmentation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -15,40 +15,34 @@ defaults:
 
 seed: 12345
 
-task_name: "segmentation_diffusion/eval"
+task_name: "segmentation_unet/train"
 
 trainer:
+  max_epochs: 200
   devices: 1
+  check_val_every_n_epoch: 1
+  gradient_clip_val: 1.0
 
 data:
-  batch_size: 256
+  batch_size: 16 # for 1 GPU 16G
   num_workers: 10
   image_size: 64
 
 model:
   net:
-    denoise_net:
-      channel_multipliers: [1, 2, 4, 4]
-      d_cond_image: 3
+    in_channels: 3
+    channel_multipliers: [1, 1, 2, 4]
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "segmentation_diffusion"
+    project: "segmentation_unet"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
-# passing checkpoint path is necessary for evaluation
-ckpt_path: null
+ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
-    n_ensemble: 5
-  metrics:
-    n_ensemble: 5
-    image_variance:
-      _target_: torchmetrics.MeanMetric
-    boundary_variance:
-      _target_: torchmetrics.MeanMetric

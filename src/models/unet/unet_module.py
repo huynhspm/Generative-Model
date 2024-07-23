@@ -1,16 +1,17 @@
-from typing import Any, Tuple, List, Dict
+from typing import Any, Tuple, Dict
 
 import torch
 from torch import Tensor
 import pyrootutils
 import torch.nn as nn
 import pytorch_lightning as pl
+
 from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
 from contextlib import contextmanager
 
-from torch.nn import BCEWithLogitsLoss, CrossEntropyLoss
-from segmentation_models_pytorch.losses import DiceLoss
+from torch.nn import CrossEntropyLoss
+from segmentation_models_pytorch.losses import SoftBCEWithLogitsLoss, DiceLoss
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
@@ -19,32 +20,37 @@ from src.utils.ema import LitEma
 
 class UNetModule(pl.LightningModule):
 
-    def __init__(
-        self,
-        net: nn.Module,
-        optimizer: Optimizer,
-        scheduler: lr_scheduler,
-        use_ema: bool = False,
-        compile: bool = False,
-        loss: str = "mse",
-        weight_loss: List[int] = None,
-    ) -> None:
+    def __init__(self,
+                 net: nn.Module,
+                 optimizer: Optimizer,
+                 scheduler: lr_scheduler,
+                 criterion: nn.Module,
+                 use_ema: bool = False,
+                 compile: bool = False) -> None:
+        """_summary_
+
+        Args:
+            net (nn.Module): _description_
+            optimizer (Optimizer): _description_
+            scheduler (lr_scheduler): _description_
+            criterion (nn.Module): _description_
+            use_ema (bool, optional): _description_. Defaults to False.
+            compile (bool, optional): _description_. Defaults to False.
+        """
+        
         super().__init__()
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # diffusion model
+        # UNet
         self.net = net
 
-        if loss =="ce":
-            self.criterion = CrossEntropyLoss(weight=torch.tensor(weight_loss, dtype=torch.float32))
-        elif loss == "bce":
-            self.criterion = BCEWithLogitsLoss(weight=torch.tensor(weight_loss))
-        elif loss == "dice":
-            self.criterion = DiceLoss(mode="binary", log_loss=True, from_logits=False)
-        else:
-            raise NotImplementedError(f"not implemented {loss}-loss")
+        assert isinstance(criterion, (CrossEntropyLoss, SoftBCEWithLogitsLoss, DiceLoss)), \
+            NotImplementedError(f"only implemented for [CrossEntropyLoss, SoftBCEWithLogitsLoss, DiceLoss]")
+        
+        # loss function
+        self.criterion = criterion
 
         # for averaging loss across batches
         self.train_loss = MeanMetric()
@@ -74,16 +80,27 @@ class UNetModule(pl.LightningModule):
                 if context is not None:
                     print(f"{context}: Restored training weights")
 
-    def forward(self,
-                x: Tensor) -> Tensor:
+    def forward(self, x: Tensor) -> Tensor:
         """Perform a forward pass through the model `self.net`."""
         return self.net(x)
+    
+    @torch.no_grad()
+    def predict(self, x: Tensor, threshold: float = 0.5) -> Tensor:
+        # return mask
+        logits = self.net(x)
+        preds = nn.functional.softmax(logits, dim=1) if isinstance(self.criterion, CrossEntropyLoss) \
+                else nn.functional.sigmoid(logits)
+        return (preds > threshold).to(torch.float32)
 
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
         # by default lightning executes validation step sanity checks before training starts,
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
+
+    def rescale(self, image):
+        # convert range of image from [-1, 1] to [0, 1]
+        return image * 0.5 + 0.5
 
     def model_step(
             self, batch: Tuple[Tensor,
@@ -94,19 +111,10 @@ class UNetModule(pl.LightningModule):
 
         :return: A tuple containing (in order):
             - A tensor of losses.
-            - A tensor of predictions.
-            - A tensor of target labels.
         """
-        batch, targets = batch
-        preds = self.forward(batch)
-        preds = nn.functional.softmax(preds, dim=1)
-
-        if isinstance(self.criterion, (BCEWithLogitsLoss, DiceLoss)):
-            targets = targets * 0.5 + 0.5
-        elif isinstance(self.criterion, CrossEntropyLoss):
-            targets = (targets.squeeze(dim=1) * 0.5 + 0.5).to(torch.int64)
-        
-        loss = self.criterion(preds, targets)
+        targets, cond = batch
+        logits = self.forward(cond["image"])
+        loss = self.criterion(logits, self.rescale(targets))
         return loss
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
@@ -194,14 +202,13 @@ class UNetModule(pl.LightningModule):
         """
         optimizer = self.hparams.optimizer(params=self.parameters())
         if self.hparams.scheduler is not None:
-            scheduler = torch.optim.lr_scheduler.LambdaLR(
-                optimizer=optimizer, lr_lambda=self.hparams.scheduler.schedule)
+            scheduler = self.hparams.scheduler(optimizer=optimizer)
             return {
                 "optimizer": optimizer,
                 "lr_scheduler": {
                     "scheduler": scheduler,
                     "monitor": "val/loss",
-                    "interval": "step",
+                    "interval": "epoch",
                     "frequency": 1,
                 },
             }
@@ -220,15 +227,59 @@ if __name__ == "__main__":
     @hydra.main(version_base=None,
                 config_path=config_path,
                 config_name="unet_module.yaml")
-    def main(cfg: DictConfig):
-        # print(cfg)
+    def main1(cfg: DictConfig):
+        print(cfg)
 
         unet_module: UNetModule = hydra.utils.instantiate(cfg)
+        image = torch.randn(2, 1, 32, 32)
+        mask = torch.ones((2, 1, 32, 32))
 
-        x = torch.randn(2, 1, 32, 32)
-        out = unet_module(x)
-        print('*' * 20, ' UNET MODULE ', '*' * 20)
-        print('Input:', x.shape)
-        print('Output:', out.shape)
+        logits = unet_module(image)
+        loss = unet_module.model_step(batch=(image, mask))
 
-    main()
+        print('*' * 20, ' UNet Module ', '*' * 20)
+        print('Input:', image.shape)
+        print('Output:', logits.shape)
+        print(f"{unet_module.criterion._get_name()}:", loss)
+        print('-' * 100)
+
+    @hydra.main(version_base=None,
+                config_path=config_path,
+                config_name="unet_attention_module.yaml")
+    def main2(cfg: DictConfig):
+        print(cfg)
+
+        unet_module: UNetModule = hydra.utils.instantiate(cfg)
+        image = torch.randn(2, 1, 32, 32)
+        mask = torch.ones((2, 1, 32, 32))
+
+        logits = unet_module(image)
+        loss = unet_module.model_step(batch=(image, mask))
+
+        print('*' * 20, ' UNet Attention Module ', '*' * 20)
+        print('Input:', image.shape)
+        print('Output:', logits.shape)
+        print(f"{unet_module.criterion._get_name()}:", loss)
+        print('-' * 100)
+
+    @hydra.main(version_base=None,
+                config_path=config_path,
+                config_name="unet_plus_plus_module.yaml")
+    def main3(cfg: DictConfig):
+        print(cfg)
+
+        unet_module: UNetModule = hydra.utils.instantiate(cfg)
+        image = torch.randn(2, 1, 32, 32)
+        mask = torch.ones((2, 1, 32, 32))
+
+        logits = unet_module(image)
+        loss = unet_module.model_step(batch=(image, mask))
+
+        print('*' * 20, ' Unet Plus Plus Module ', '*' * 20)
+        print('Input:', image.shape)
+        print('Output:', logits.shape)
+        print(f"{unet_module.criterion._get_name()}:", loss)
+
+    main1()
+    main2()
+    main3()

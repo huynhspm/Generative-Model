@@ -1,4 +1,4 @@
-_target_: src.models.unet.net.UNet
+_target_: src.models.unet.net.UNetAttention
 
 in_channels: 1 # the channel count of the input
 out_channels: 1 # the channel count of the output

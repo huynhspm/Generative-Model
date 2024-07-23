@@ -9,13 +9,14 @@ pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
 from src.models.components.blocks import init_block, get_all_blocks
 from src.models.components.attentions import init_attention, get_all_attentions
+from src.models.components.embeds import TimeEmbedder
 from src.models.components.up_down import DownSample, UpSample
 
 
-class UNetAttention(nn.Module):
+class UNetDiffusion(nn.Module):
     """
-    ### UNet: Default all parameters of attention are Nones
-    ### UNetAttention = UNet + attention
+    ### UNetDiffusion =  UNet + time_embedder
+    ### Conditional UNetDiffusion = UNetDiffusion + condition (label, image, text) embedding
     """
 
     def __init__(self,
@@ -24,29 +25,39 @@ class UNetAttention(nn.Module):
                  base_channels: int = 64,
                  block: str = "Residual",
                  n_layer_blocks: int = 1,
-                 drop_rate: float = 0.,
                  channel_multipliers: List[int] = [1, 2, 4],
-                 attention: str | None = None,
-                 attention_levels: List[int] | None = None,
-                 n_attention_heads: int | None = None,
-                 n_attention_layers: int | None = None) -> None:
+                 attention: str = "SelfAttention",
+                 attention_levels: List[int] = [1, 2],
+                 n_attention_heads: int = 4,
+                 n_attention_layers: int = 1,
+                 d_cond_image: int = None,
+                 d_cond_text: int = None,
+                 drop_rate: float = 0.) -> None:
         """_summary_
 
         Args:
-            in_channels (int): the number of channels in the input.
-            out_channels (int): the number of channels in the output.
+            in_channels (int): the number of channels in the input
+            out_channels (int): the number of channels in the output
             base_channels (int, optional): is the number of channels in the first convolution layer. Defaults to 64.
             block (str, optional): type of block for each level. Defaults to "Residual".
             n_layer_blocks (int, optional): number of blocks at each level. Defaults to 1.
-            drop_rate (float, optional): percentage of dropout. Defaults to 0..
             channel_multipliers (List[int], optional): the multiplicative factors for number of channels for each level. Defaults to [1, 2, 4].
             attention (str, optional): type of attentions for each level. Defaults to "SelfAttention".
-            attention_levels (List[int], optional): the levels at which attention be performed. Defaults to [1, 2].
-            n_attention_heads (int, optional): the number of head for multi-head attention. Defaults to 4.
-            n_attention_layers (int, optional): the number of layer in each attention. Defaults to 1.
+            attention_levels (List[int], optional): the levels at which attention should be performed. Defaults to [1, 2].
+            n_attention_heads (int, optional): the number of attention heads. Defaults to 4.
+            n_attention_layers (int, optional): the number of attention layers. Defaults to 1.
+            d_cond_image (int, optional): the number of dimension of image condition. Defaults to None.
+            d_cond_text (int, optional): the number of dimension of text condition. Defaults to None.
+            drop_rate (float, optional): percentage of dropout. Defaults to 0..
         """
-        
+
         super().__init__()
+
+        # size time embeddings
+        d_time_emb = base_channels * channel_multipliers[-1]
+
+        # layer for time embeddings
+        self.time_embedder = TimeEmbedder(base_channels, d_time_emb)
 
         # number of levels (downSample and upSample)
         levels = len(channel_multipliers)
@@ -69,7 +80,8 @@ class UNetAttention(nn.Module):
         # input convolution
         self.down.append(
             SequentialBlock(
-                nn.Conv2d(in_channels=in_channels,
+                nn.Conv2d(in_channels=in_channels +
+                          (d_cond_image if d_cond_image is not None else 0),
                           out_channels=channels,
                           kernel_size=3,
                           padding=1)))
@@ -84,6 +96,7 @@ class UNetAttention(nn.Module):
                 layers = [
                     Block(
                         in_channels=channels,
+                        d_t_emb=d_time_emb,
                         out_channels=channels_list[i],
                         drop_rate=drop_rate,
                     )
@@ -99,6 +112,7 @@ class UNetAttention(nn.Module):
                             channels=channels,
                             n_heads=n_attention_heads,
                             n_layers=n_attention_layers,
+                            d_cond=d_cond_text,
                         ))
 
                 self.down.append(SequentialBlock(*layers))
@@ -113,18 +127,22 @@ class UNetAttention(nn.Module):
         self.mid = SequentialBlock(
             Block(
                 in_channels=channels,
+                d_t_emb=d_time_emb,
                 drop_rate=drop_rate,
             ),
             Attention(
                 channels=channels,
                 n_heads=n_attention_heads,
                 n_layers=n_attention_layers,
+                d_cond=d_cond_text,
             ) if attention is not None else Block(
                 in_channels=channels,
+                d_t_emb=d_time_emb,
                 drop_rate=drop_rate,
             ),
             Block(
                 in_channels=channels,
+                d_t_emb=d_time_emb,
                 drop_rate=drop_rate,
             ),
         )
@@ -140,6 +158,7 @@ class UNetAttention(nn.Module):
                 layers = [
                     Block(
                         in_channels=channels + input_block_channels.pop(),
+                        d_t_emb=d_time_emb,
                         out_channels=channels_list[i],
                         drop_rate=drop_rate,
                     )
@@ -153,6 +172,7 @@ class UNetAttention(nn.Module):
                             channels=channels,
                             n_heads=n_attention_heads,
                             n_layers=n_attention_layers,
+                            d_cond=d_cond_text,
                         ))
 
                 if i != 0 and j == n_layer_blocks:
@@ -169,32 +189,54 @@ class UNetAttention(nn.Module):
                       padding=1),
         )
 
-    def forward(self, x: Tensor) -> Tensor:
+    def forward(self,
+                x: Tensor,
+                time_steps: Tensor,
+                cond: Dict[str, Tensor] = None) -> Tensor:
         """_summary_
 
         
         Args:
             x (Tensor): is the input feature map of shape `[batch_size, channels, width, height]`
+            time_steps (Tensor): are the time steps of shape `[batch_size]`
+            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
 
         Returns:
             Tensor: _description_
         """
+
+        # get time step embeddings
+        t_emb = self.time_embedder(time_steps)
+        text_embed = None
+
+        if cond is not None:
+            if 'label' in cond.keys():
+                assert cond['label'].shape[0] == x.shape[0], 'shape not match'
+                t_emb = t_emb + cond['label']
+
+            if 'image' in cond.keys():
+                assert cond['image'].shape[0] == x.shape[0], 'shape not match'
+                x = torch.cat((x, cond['image']), dim=1)
+
+            if 'text' in cond.keys():
+                assert cond['text'].shape[0] == x.shape[0], 'shape not match'
+                text_embed = cond['text']
 
         # to store the input half outputs for skip connections
         x_input_block = []
 
         # input half of the U-Net
         for module in self.down:
-            x = module(x)
+            x = module(x, t_emb, text_embed)
             x_input_block.append(x)
 
         # middle of the U-Net
-        x = self.mid(x)
+        x = self.mid(x, t_emb, text_embed)
 
         # Output half of the U-Net
         for module in self.up:
             x = torch.cat([x, x_input_block.pop()], dim=1)
-            x = module(x)
+            x = module(x, t_emb, text_embed)
 
         # output convolution
         x = self.conv_out(x)
@@ -232,34 +274,43 @@ if __name__ == "__main__":
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="unet.yaml")
+                config_name="unet_diffusion.yaml")
     def main1(cfg: DictConfig):
         print(cfg)
 
-        unet: UNetAttention = hydra.utils.instantiate(cfg)
+        unet_diffusion: UNetDiffusion = hydra.utils.instantiate(cfg)
         image = torch.randn(2, 1, 32, 32)
+        time_step = torch.randint(0, 1000, (2, ))
 
-        logits = unet(image)
+        output = unet_diffusion(image, time_step)
 
-        print('***** UNet *****')
-        print('Input:', image.shape)
-        print('Output:', logits.shape)
-        print('-' * 100)
+        print('***** UNet Diffusion *****')
+        print('Input:', image.shape, time_step.shape)
+        print('Output:', output.shape)
+
+        print('-' * 60)
 
     @hydra.main(version_base=None,
                 config_path=config_path,
-                config_name="unet_attention.yaml")
-    def main2(cfg:DictConfig):
+                config_name="unet_condition_diffusion.yaml")
+    def main2(cfg: DictConfig):
         print(cfg)
 
-        unet_attention: UNetAttention = hydra.utils.instantiate(cfg)
+        cond_unet_attention: UNetDiffusion = hydra.utils.instantiate(cfg)
         image = torch.randn(2, 1, 32, 32)
-        
-        logits = unet_attention(image)
-        
-        print('***** UNet Attention *****')
-        print('Input:', image.shape)
-        print('Output:', logits.shape)
+        time_step = torch.randint(0, 1000, (2, ))
+        cond = {
+            'label': torch.randn(2, 256),
+            'image': torch.rand_like(image),
+        }
 
+        output = cond_unet_attention(image, time_step, cond=cond)
+        
+        print('***** Condition UNet Attention *****')
+        print('Input:', image.shape, time_step.shape)
+        print('Cond_label:', cond['label'].shape)
+        print('Cond_image:', cond['image'].shape)
+        print('Output:', output.shape)
+    
     main1()
     main2()

@@ -1,4 +1,4 @@
-_target_: src.models.unet.net.UNetAttention
+_target_: src.models.unet.net.UNetDiffusion
 
 in_channels: 1 # the channel count of the input
 out_channels: 1 # the channel count of the output
@@ -10,3 +10,6 @@ attention: SelfAttention # type of attentions for each level
 attention_levels: [1, 2] # the levels at which attention should be performed
 n_attention_heads: 4 # the number of attention heads
 n_attention_layers: 1 # the number of attention layers
+d_cond_image: 1 # the number of dimension of image condition. Defaults to None.
+d_cond_text: null # the number of dimension of text condition. Defaults to None.
+drop_rate: 0 # drop out layer

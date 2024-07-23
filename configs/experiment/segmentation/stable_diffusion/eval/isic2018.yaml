@@ -55,3 +55,10 @@ ckpt_path: null
 callbacks:
   gen_sample:
     grid_shape: [5, 5]
+    n_ensemble: 5
+  metrics:
+    n_ensemble: 5
+    image_variance:
+      _target_: torchmetrics.MeanMetric
+    boundary_variance:
+      _target_: torchmetrics.MeanMetric

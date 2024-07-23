@@ -22,22 +22,14 @@ net:
   block: Residual # type of blocks for each level
   n_layer_blocks: 1 # number of blocks at each level
   channel_multipliers: [1, 2, 4] # the multiplicative factors for number of channels for each level
-  drop_rate: 0 # drop out layer
-  attention: null # type of attentions for each level
-  attention_levels: null # the levels at which attention should be performed
-  n_attention_heads: null # the number of attention heads
-  n_attention_layers: null # the number of attention layers
+  attention: SelfAttention # type of attentions for each level
+  attention_levels: [1, 2] # the levels at which attention should be performed
+  n_attention_heads: 4 # the number of attention heads
+  n_attention_layers: 1 # the number of attention layers
 
 criterion:
-  # Dice Loss for binary-class or multi-label or multi-class
+  # Dice Loss
   _target_: segmentation_models_pytorch.losses.DiceLoss
   mode: binary
-
-  # BCE Loss for binary-class or multi-label
-  # _target_: segmentation_models_pytorch.losses.SoftBCEWithLogitsLoss
-  # pos_weights: 
-
-  # CE Loss for multi-class
-  # _target_: segmentation_models_pytorch.losses.SoftCrossEntropyLoss
-  # _target_: torch.nn.CrossEntropyLoss
-  # weights:
+  log_loss: true
+  from_logits: true

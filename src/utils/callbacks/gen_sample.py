@@ -8,8 +8,10 @@ from pytorch_lightning import LightningModule, Trainer
 from torchvision.utils import make_grid
 from pytorch_lightning.callbacks import Callback
 
+from src.models.gan import GANModule, ConditionGANModule
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
+from src.models.unet import UNetModule
 
 
 class GenSample(Callback):
@@ -64,15 +66,14 @@ class GenSample(Callback):
 
     @torch.no_grad()  # for VAE forward
     def sample(self, pl_module: LightningModule, batch: Any, mode: str):
-        images, _ = batch
 
         # avoid out of memory
         n_samples = min(self.grid_shape[0] * self.grid_shape[1],
-                        images.shape[0])
+                        batch[0].shape[0])
 
         with pl_module.ema_scope():
             if isinstance(pl_module, VAEModule):
-                targets = images[:n_samples]
+                targets = batch[0][:n_samples]
                 preds, _ = pl_module.net(targets)  # remove grad
                 samples = pl_module.net.sample(n_samples=n_samples,
                                                device=pl_module.device)
@@ -87,7 +88,7 @@ class GenSample(Callback):
                                 caption=['samples', 'recons_img', 'target'])
 
             elif isinstance(pl_module, DiffusionModule):
-                reals = images[:n_samples]
+                reals = batch[0][:n_samples]
 
                 conds = None
                 if isinstance(pl_module, ConditionDiffusionModule):
@@ -122,9 +123,45 @@ class GenSample(Callback):
                     mode=mode,
                     caption=['fake', 'real', 'cond'] if conds is not None
                     and 'image' in conds.keys() else ['fake', 'real'])
+            
+            elif isinstance(pl_module, GANModule):
+                reals = batch[0][:n_samples]
 
-        if images.shape[0] > 1:
-            self.interpolation(pl_module=pl_module, images=images[:2],mode=mode)
+                conds = None
+                if isinstance(pl_module, ConditionGANModule):
+                    conds = {key: value[:n_samples] for key, value in batch[1].items()}
+
+                fakes = pl_module.net.sample(num_sample=n_samples, 
+                                             device=pl_module.device, 
+                                             cond=conds if isinstance(
+                                                 pl_module, ConditionGANModule) else None)
+
+                reals = self.rescale(reals)
+                fakes = self.rescale(fakes)
+
+                self.log_sample([fakes, reals],
+                                pl_module=pl_module,
+                                nrow=self.grid_shape[0],
+                                mode=mode,
+                                caption=['fake', 'real'])
+
+            elif isinstance(pl_module, UNetModule):
+                masks = batch[0][:n_samples]
+                images = batch[1]["image"][:n_samples]
+                preds = pl_module.predict(images)
+
+                self.log_sample([preds, masks, images],
+                                pl_module=pl_module,
+                                nrow=self.grid_shape[0],
+                                mode=mode,
+                                caption=['preds', 'mask', "image"])
+
+
+            else:
+                raise NotImplementedError('This module is not implemented')
+            
+        if batch[0].shape[0] > 1:
+            self.interpolation(pl_module=pl_module, images=batch[0][:2],mode=mode)
 
     def compute_variance(self,
                          pl_module: ConditionDiffusionModule,
@@ -134,7 +171,7 @@ class GenSample(Callback):
                          mode: str, 
                          n_images: int = 6):
         ensemble = fakes.mean(dim=1)
-        fake_variance = ((fakes > 0.5).to(torch.float64)).var(dim=1)
+        fake_variance = ((fakes > 0.5).to(torch.float32)).var(dim=1)
         _, c, w, h = reals.shape
 
         # only get n_images to log variance
@@ -273,6 +310,9 @@ class GenSample(Callback):
                 gen_samples = pl_module.net.sample(
                     interpolated_z, sample_steps=sample_steps)
                 interpolated_img = gen_samples[-1]
+            else:
+                return 
+            
 
         interpolated_img = torch.cat(
             [images[0].unsqueeze(0), interpolated_img, images[1].unsqueeze(0)],

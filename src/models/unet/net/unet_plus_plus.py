@@ -6,7 +6,9 @@ class UNetPlusPlus(nn.Module):
     def __init__(self, in_channels,  out_channels, base_channels, number_unet, 
                  conv_layer, norm_layer, activate_layer, transpconv_layer, 
                  conv_kwargs, norm_kwargs, activate_kwargs, transpconv_kwargs):
-        super(UNetPlusPlus, self).__init__()
+        
+        super().__init__()
+
         # number of unet
         self.number_unet = number_unet
         # name of convolution layer
@@ -131,13 +133,15 @@ if __name__ == "__main__":
                 config_path=config_path, 
                 config_name="unet_plus_plus.yaml")
     def main(cfg: DictConfig):
-        # print(cfg)
+        print(cfg)
 
         unet_plus_plus: UNetPlusPlus = hydra.utils.instantiate(cfg)
-        x = torch.randn(2, 1, 240, 240)
-        out = unet_plus_plus(x)
+        image = torch.randn(2, 1, 240, 240)
+        
+        logits = unet_plus_plus(image)
+        
         print('***** UNet Plus Plus*****')
-        print('Input:', x.shape)
-        print('Output:', out.shape)
+        print('Input:', image.shape)
+        print('Output:', logits.shape)
     
     main()
