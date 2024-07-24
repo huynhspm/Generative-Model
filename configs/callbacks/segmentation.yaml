@@ -20,7 +20,6 @@ model_summary:
 
 metrics:
   _target_: src.utils.callbacks.Metrics
-  n_ensemble: 5
   dice:
     _target_: torchmetrics.Dice
     average: micro
@@ -30,10 +29,3 @@ metrics:
     average: micro
     task: binary
     # ignore_index: 0 # error from torchmetrics
-  image_variance:
-    _target_: torchmetrics.MeanMetric
-  boundary_variance:
-    _target_: torchmetrics.MeanMetric
-
-gen_sample:
-  n_ensemble: 5

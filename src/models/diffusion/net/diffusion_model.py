@@ -56,7 +56,7 @@ class DiffusionModel(nn.Module):
         x0: Tensor,
         sample_steps: Tensor | None = None,
         noise: Tensor | None = None,
-        cond: Dict[str, Tensor] = None,
+        cond: Dict[str, Tensor] | None = None,
     ) -> Tuple[Tensor, Tensor]:
         """_summary_
         ### forward diffusion process to create label for model training
@@ -64,12 +64,10 @@ class DiffusionModel(nn.Module):
             x0 (Tensor): _description_
             sample_steps (Tensor | None, optional): _description_. Defaults to None.
             noise (Tensor | None, optional): _description_. Defaults to None.
-            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor] | None, optional): _description_. Defaults to None.
 
         Returns:
-            Tuple[Tensor, Tensor]:
-                - pred: noise is predicted from xt by model
-                - target: noise is added to (x0 -> xt)
+            Tuple[Tensor, Tensor]: _description_
         """
         if sample_steps is None:
             #  generate sample timesteps ~ U(0, T - 1)
@@ -110,7 +108,7 @@ class DiffusionModel(nn.Module):
     def sample(self,
                xt: Tensor | None = None,
                sample_steps: Tensor | None = None,
-               cond: Dict[str, Tensor] = None,
+               cond: Dict[str, Tensor] | None = None,
                num_sample: int | None = 1,
                noise: Tensor | None = None,
                repeat_noise: bool = False,

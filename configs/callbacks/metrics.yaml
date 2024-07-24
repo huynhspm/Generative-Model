@@ -10,4 +10,4 @@ metrics:
   boundary_variance: null
   mean: ${data.transform_val.transforms[1].mean}
   std: ${data.transform_val.transforms[1].std}
-  n_ensemble: 1
+  n_ensemble: null

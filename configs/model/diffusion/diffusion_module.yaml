@@ -21,7 +21,7 @@ net:
     - ${data.image_size}
     - ${data.image_size}
   denoise_net:
-    _target_: src.models.unet.net.UNetAttention
+    _target_: src.models.unet.net.UNetDiffusion
 
     in_channels: ${model.net.img_dims[0]} # the channel count of the input
     out_channels: ${model.net.img_dims[0]} # the channel count of the output

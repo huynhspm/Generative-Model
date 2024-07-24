@@ -74,20 +74,18 @@ class LatentDiffusionModel(DiffusionModel):
         x0: Tensor,
         sample_steps: Tensor | None = None,
         noise: Tensor | None = None,
-        cond: Dict[str, Tensor] = None,
+        cond: Dict[str, Tensor] | None = None,
     ) -> Tuple[Tensor, Tensor]:
         """_summary_
-        ### forward diffusion process to create label for model training
+        ### forward latent diffusion process to create label for model training
         Args:
             x0 (Tensor): _description_
             sample_steps (Tensor | None, optional): _description_. Defaults to None.
             noise (Tensor | None, optional): _description_. Defaults to None.
-            cond (Dict[str, Tensor], optional): _description_. Defaults to None.
+            cond (Dict[str, Tensor] | None, optional): _description_. Defaults to None.
 
         Returns:
-            Tuple[Tensor, Tensor]:
-                - pred: noise is predicted from xt by model
-                - target: noise is added to (x0 -> xt)
+            Tuple[Tensor, Tensor]: _description_
         """
         z = self.autoencoder_encode(x0)
         return super().forward(z, sample_steps, noise, cond)
@@ -96,14 +94,14 @@ class LatentDiffusionModel(DiffusionModel):
     def sample(self,
                xt: Tensor | None = None,
                sample_steps: Tensor | None = None,
-               cond: Dict[str, Tensor] = None,
+               cond: Dict[str, Tensor] | None = None,
                num_sample: int | None = 1,
                noise: Tensor | None = None,
                repeat_noise: bool = False,
                device: torch.device = torch.device('cpu'),
                prog_bar: bool = False) -> List[Tensor]:
         """_summary_
-        ### reverse diffusion process
+        ### reverse latent diffusion process
         Args:
             xt (Tensor | None, optional): _description_. Defaults to None.
             sample_steps (Tensor | None, optional): _description_. Defaults to None.
@@ -117,7 +115,7 @@ class LatentDiffusionModel(DiffusionModel):
         Returns:
             List[Tensor]: _description_
         """
-
+        
         z_samples = super().sample(xt, sample_steps, cond, num_sample, noise,
                                    repeat_noise, device, prog_bar)
         return [self.autoencoder_decode(z) for z in z_samples]

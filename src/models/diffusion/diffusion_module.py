@@ -5,6 +5,7 @@ from torch import Tensor
 import pyrootutils
 import torch.nn as nn
 import pytorch_lightning as pl
+
 from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
 from contextlib import contextmanager
@@ -17,14 +18,13 @@ from src.utils.ema import LitEma
 
 class DiffusionModule(pl.LightningModule):
 
-    def __init__(
-        self,
-        net: DiffusionModel,
-        optimizer: Optimizer,
-        scheduler: lr_scheduler,
-        use_ema: bool = False,
-        compile: bool = False,
-    ) -> None:
+    def __init__(self,
+                 net: DiffusionModel,
+                 optimizer: Optimizer,
+                 scheduler: lr_scheduler,
+                 use_ema: bool = False,
+                 compile: bool = False) -> None:
+        
         super().__init__()
         # this line allows to access init params with 'self.hparams' attribute
         # also ensures init params will be stored in ckpt
@@ -72,8 +72,7 @@ class DiffusionModule(pl.LightningModule):
         :param x: A tensor of images.
         :return: Two tensor of noise
         """
-        preds, targets = self.net(x, cond=cond)
-        return preds, targets
+        return self.net(x, cond=cond)
 
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
@@ -90,17 +89,16 @@ class DiffusionModule(pl.LightningModule):
 
         :return: A tuple containing (in order):
             - A tensor of losses.
-            - A tensor of predictions.
-            - A tensor of target labels.
         """
+
         batch, _ = batch
         preds, targets = self.forward(batch)
         loss = self.criterion(preds, targets)
-        return loss, preds, targets
+        return loss
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
                       batch_idx: int) -> Tensor:
-        loss, preds, targets = self.model_step(batch)
+        loss = self.model_step(batch)
 
         # update and log metrics
         self.train_loss(loss)
@@ -127,7 +125,8 @@ class DiffusionModule(pl.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+
+        loss = self.model_step(batch)
 
         # update and log metrics
         self.val_loss(loss)
@@ -149,7 +148,7 @@ class DiffusionModule(pl.LightningModule):
             labels.
         :param batch_idx: The index of the current batch.
         """
-        loss, preds, targets = self.model_step(batch)
+        loss = self.model_step(batch)
 
         # update and log metrics
         self.test_loss(loss)
@@ -210,10 +209,12 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="diffusion_module.yaml")
     def main(cfg: DictConfig):
-        cfg['net']['n_train_steps'] = 1000
-        cfg['net']['img_dims'] = [1, 32, 32]
-        cfg['net']['sampler']['n_train_steps'] = 1000
-        # print(cfg)
+        cfg["net"]["n_train_steps"] = 1000
+        cfg["net"]["img_dims"] = [1, 32, 32]
+        cfg["net"]["sampler"]["n_train_steps"] = 1000
+        cfg["net"]["denoise_net"]["in_channels"] = 1
+        cfg["net"]["denoise_net"]["out_channels"] = 1
+        print(cfg)
 
         diffusion_module: DiffusionModule = hydra.utils.instantiate(cfg)
 

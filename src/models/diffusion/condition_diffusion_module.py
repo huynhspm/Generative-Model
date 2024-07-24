@@ -12,22 +12,28 @@ from src.models.diffusion.net import ConditionDiffusionModel
 
 class ConditionDiffusionModule(DiffusionModule):
 
-    def __init__(
-        self,
-        net: ConditionDiffusionModel,
-        optimizer: Optimizer,
-        scheduler: lr_scheduler,
-        use_ema: bool = False,
-        compile: bool = False,
+    def __init__(self,
+                 net: ConditionDiffusionModel,
+                 optimizer: Optimizer,
+                 scheduler: lr_scheduler,
+                 use_ema: bool = False,
+                 compile: bool = False) -> None: 
         
-    ) -> None: 
         super().__init__(net, optimizer, scheduler, use_ema, compile)
 
     def model_step(self, batch: Any):
+        """Perform a single model step on a batch of data.
+
+        :param batch: A batch of data (a tuple) containing the input tensor of images and target labels.
+
+        :return: A tuple containing (in order):
+            - A tensor of losses.
+        """
+
         batch, cond = batch
         preds, targets = self.forward(batch, cond=cond)
         loss = self.criterion(preds, targets)
-        return loss, preds, targets
+        return loss
 
 
 if __name__ == "__main__":

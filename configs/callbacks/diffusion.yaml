@@ -29,3 +29,6 @@ metrics:
     _target_: torchmetrics.image.InceptionScore
     feature: 2048
     normalize: True
+
+gen_sample:
+  n_ensemble: 1
