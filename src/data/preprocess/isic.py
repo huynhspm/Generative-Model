@@ -86,7 +86,7 @@ class Boundary:
     def discretized_boundary(self, n_point: int = 500):
         idx = np.linspace(0,
                           len(self.full_points) - 1, n_point).astype(np.int64)
-        self.discrete_points = self.full_points[idx].astype(np.float64)
+        self.discrete_points = self.full_points[idx].astype(np.float32)
 
     def invariant_translation(self):
         self.discrete_points -= self.centroid

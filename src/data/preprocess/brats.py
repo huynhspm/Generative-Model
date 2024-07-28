@@ -37,7 +37,7 @@ def preprocess(src_dir: str, des_dir: str, img_types: List[str]):
             img = img[8:-8, 8:-8, ...]
 
             if img_type == 'seg':
-                mask = np.where(img > 0, 1, 0).astype(np.float64)
+                mask = np.where(img > 0, 1, 0).astype(np.float32)
             else:
                 image.append(img)
 

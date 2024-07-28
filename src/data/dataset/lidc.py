@@ -49,13 +49,13 @@ class LIDCDataset(Dataset):
         mask = np.load(mask_path)
 
         image = (image - image.min()) / (image.max() - image.min())
-        mask = mask.astype(np.float64)
+        mask = mask.astype(np.float32)
 
         if not self.multi_mask:
             return mask, {'image': image}
 
         # multi mask
-        masks = [np.load(mask_path.replace('_e', f'_{i}')).astype(np.float64) for i in range(4)]
+        masks = [np.load(mask_path.replace('_e', f'_{i}')).astype(np.float32) for i in range(4)]
         masks = np.stack(masks, axis=-1)
 
         return mask, {'image': image, 'masks': masks}

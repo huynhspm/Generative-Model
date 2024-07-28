@@ -120,6 +120,15 @@ class DiffusionDataModule(pl.LightningDataModule):
         Do not use it to assign state (self.x = y).
         """
         pass
+    
+    def get_subset(self, dataset: Dataset, n_dataset: int):
+        # get subset of dataset to test code before training
+
+        if 1 < n_dataset and n_dataset < len(dataset):
+            print(len(dataset), "-->", n_dataset)
+            return Subset(dataset, list(range(n_dataset)))
+        
+        return dataset
 
     def setup(self, stage: Optional[str] = None) -> None:
         """Load data. Set variables: `self.data_train`, `self.data_val`, `self.data_test`.
@@ -156,14 +165,19 @@ class DiffusionDataModule(pl.LightningDataModule):
                                         data_dir=self.hparams.data_dir,
                                         train_val_test_dir=test_dir)
 
+                if self.hparams.train_val_test_split is not None:
+                    n_train, n_val, n_test = self.hparams.train_val_test_split
+
+                    train_set = self.get_subset(train_set, n_train)
+                    val_set = self.get_subset(val_set, n_val)
+                    test_set = self.get_subset(test_set, n_test)
+
             else:
                 dataset = init_dataset(self.hparams.dataset_name,
                                        data_dir=self.hparams.data_dir)
 
                 # for testing code before training
-                len_dataset = sum(self.hparams.train_val_test_split)
-                if 1 < len_dataset and len_dataset < len(dataset):
-                    dataset = Subset(dataset, list(range(len_dataset)))
+                dataset = self.get_subset(dataset, sum(self.hparams.train_val_test_split))           
 
                 train_set, val_set, test_set = random_split(
                     dataset=dataset,
