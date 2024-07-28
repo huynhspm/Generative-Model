@@ -165,6 +165,9 @@ class Metrics(Callback):
             raise NotImplementedError('This module is not implemented')
 
     def update_metrics(self, pl_module: LightningModule, batch: Any) -> None:
+        
+        targets = self.rescale(batch[0]) # range [0, 1]
+        preds = self.infer(pl_module, batch)
 
         if self.image_variance is not None or self.boundary_variance is not None:
             self.update_variance(preds, pl_module.device)

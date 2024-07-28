@@ -53,7 +53,5 @@ logger:
 ckpt_path: null # simply provide checkpoint path to resume training
 
 callbacks:
-  gen_sample:
-    grid_shape: [2, 2]
   metrics:
     IS: null
