@@ -20,13 +20,15 @@ from src.utils.ema import LitEma
 
 class UNetModule(pl.LightningModule):
 
-    def __init__(self,
-                 net: nn.Module,
-                 optimizer: Optimizer,
-                 scheduler: lr_scheduler,
-                 criterion: nn.Module,
-                 use_ema: bool = False,
-                 compile: bool = False) -> None:
+    def __init__(
+        self,
+        net: nn.Module,
+        optimizer: Optimizer,
+        scheduler: lr_scheduler,
+        criterion: nn.Module,
+        use_ema: bool = False,
+        compile: bool = False,
+    ) -> None:
         """_summary_
 
         Args:
@@ -85,12 +87,19 @@ class UNetModule(pl.LightningModule):
         return self.net(x)
     
     @torch.no_grad()
-    def predict(self, x: Tensor, threshold: float = 0.5) -> Tensor:
+    def predict(self, x: Tensor, threshold: float = 0.5, dtype: torch.dtype = torch.float32) -> Tensor:
         # return mask
-        logits = self.net(x)
+
+        if self.use_ema:
+            with self.ema_scope():
+                logits = self.net(x)
+        else:
+            logits = self.net(x)
+
         preds = nn.functional.softmax(logits, dim=1) if isinstance(self.criterion, CrossEntropyLoss) \
                 else nn.functional.sigmoid(logits)
-        return (preds > threshold).to(torch.float32)
+
+        return (preds > threshold).to(dtype) # range [0, 1]
 
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
@@ -103,8 +112,9 @@ class UNetModule(pl.LightningModule):
         return image * 0.5 + 0.5
 
     def model_step(
-            self, batch: Tuple[Tensor,
-                               Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
+        self, 
+        batch: Tuple[Tensor, Tensor],
+    ) -> Tensor:
         """Perform a single model step on a batch of data.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target labels.
@@ -233,9 +243,10 @@ if __name__ == "__main__":
         unet_module: UNetModule = hydra.utils.instantiate(cfg)
         image = torch.randn(2, 1, 32, 32)
         mask = torch.ones((2, 1, 32, 32))
+        cond = {"image": image}
 
         logits = unet_module(image)
-        loss = unet_module.model_step(batch=(image, mask))
+        loss = unet_module.model_step(batch=(mask, cond))
 
         print('*' * 20, ' UNet Module ', '*' * 20)
         print('Input:', image.shape)
@@ -252,9 +263,10 @@ if __name__ == "__main__":
         unet_module: UNetModule = hydra.utils.instantiate(cfg)
         image = torch.randn(2, 1, 32, 32)
         mask = torch.ones((2, 1, 32, 32))
+        cond = {"image": image}
 
         logits = unet_module(image)
-        loss = unet_module.model_step(batch=(image, mask))
+        loss = unet_module.model_step(batch=(mask, cond))
 
         print('*' * 20, ' UNet Attention Module ', '*' * 20)
         print('Input:', image.shape)
@@ -271,9 +283,10 @@ if __name__ == "__main__":
         unet_module: UNetModule = hydra.utils.instantiate(cfg)
         image = torch.randn(2, 1, 32, 32)
         mask = torch.ones((2, 1, 32, 32))
+        cond = {"image": image}
 
         logits = unet_module(image)
-        loss = unet_module.model_step(batch=(image, mask))
+        loss = unet_module.model_step(batch=(mask, cond))
 
         print('*' * 20, ' Unet Plus Plus Module ', '*' * 20)
         print('Input:', image.shape)

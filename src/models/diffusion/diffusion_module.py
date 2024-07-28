@@ -1,4 +1,4 @@
-from typing import Any, Tuple, Dict
+from typing import Any, Tuple, List, Dict
 
 import torch
 from torch import Tensor
@@ -18,12 +18,14 @@ from src.utils.ema import LitEma
 
 class DiffusionModule(pl.LightningModule):
 
-    def __init__(self,
-                 net: DiffusionModel,
-                 optimizer: Optimizer,
-                 scheduler: lr_scheduler,
-                 use_ema: bool = False,
-                 compile: bool = False) -> None:
+    def __init__(
+        self,
+        net: DiffusionModel,
+        optimizer: Optimizer,
+        scheduler: lr_scheduler,
+        use_ema: bool = False,
+        compile: bool = False,
+    ) -> None:
         
         super().__init__()
         # this line allows to access init params with 'self.hparams' attribute
@@ -74,6 +76,31 @@ class DiffusionModule(pl.LightningModule):
         """
         return self.net(x, cond=cond)
 
+    @torch.no_grad()
+    def predict(
+        self,
+        cond: Dict[str, Tensor] | None = None,
+        xt: Tensor | None = None,
+        sample_steps: Tensor | None = None,
+        num_sample: int = 1,
+        noise: Tensor | None = None,
+        repeat_noise: bool = False,
+        device: torch.device = torch.device('cpu'),
+        prog_bar: bool = False,
+        get_all_denoise_images: bool = False,
+    ) -> List[Tensor]:
+        # return list of denoising images
+
+        if self.use_ema:
+            with self.ema_scope():
+                gen_samples = self.net.sample(cond, xt, sample_steps, num_sample, noise,
+                                              repeat_noise, device, prog_bar, get_all_denoise_images)
+        else:
+            gen_samples = self.net.sample(cond, xt, sample_steps, num_sample, noise,
+                                          repeat_noise, device, prog_bar, get_all_denoise_images)
+
+        return gen_samples # range [-1, 1]
+
     def on_train_start(self) -> None:
         """Lightning hook that is called when training begins."""
         # by default lightning executes validation step sanity checks before training starts,
@@ -82,7 +109,7 @@ class DiffusionModule(pl.LightningModule):
 
     def model_step(
             self, batch: Tuple[Tensor,
-                               Tensor]) -> Tuple[Tensor, Tensor, Tensor]:
+                               Tensor]) -> Tensor:
         """Perform a single model step on a batch of data.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target labels.
@@ -220,9 +247,12 @@ if __name__ == "__main__":
 
         x = torch.randn(2, 1, 32, 32)
         pred, target = diffusion_module(x)
+        loss = diffusion_module.model_step(batch=[x, None])
+
         print('*' * 20, ' DIFFUSION MODULE ', '*' * 20)
         print('Input:', x.shape)
         print('Prediction:', pred.shape)
         print('Target:', target.shape)
+        print(f"{diffusion_module.criterion._get_name()}:", loss)
 
     main()

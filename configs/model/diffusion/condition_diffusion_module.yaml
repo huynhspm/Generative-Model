@@ -45,5 +45,4 @@ net:
   label_embedder: null
   image_embedder: null
   text_embedder: null
-  gif_frequency: 20
   classifier_free: false

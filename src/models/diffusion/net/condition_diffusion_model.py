@@ -7,7 +7,7 @@ import pyrootutils
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.unet.net import UNetAttention
+from src.models.unet.net import UNetDiffusion
 from src.models.diffusion.net import DiffusionModel
 from src.models.diffusion.sampler import BaseSampler
 
@@ -19,30 +19,29 @@ class ConditionDiffusionModel(DiffusionModel):
 
     def __init__(
         self,
-        denoise_net: UNetAttention,
+        denoise_net: UNetDiffusion,
         sampler: BaseSampler,
         label_embedder: nn.Module = None,
         image_embedder: nn.Module = None,
         text_embedder: nn.Module = None,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
-        gif_frequency: int = 20,
         classifier_free: bool = False,
     ) -> None:
         """_summary_
-        
+
         Args:
-            denoise_net (UNet): model to learn noise
-            sampler (BaseSampler): mampler for process with image in diffusion
+            denoise_net (UNetDiffusion): model to learn noise
+            sampler (BaseSampler): sampler for process with image in diffusion
             label_embedder (nn.Module, optional): _description_. Defaults to None.
             image_embedder (nn.Module, optional): _description_. Defaults to None.
             text_embedder (nn.Module, optional): _description_. Defaults to None.
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
-            img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
-            gif_frequency (int, optional): _description_. Defaults to 20.
+            img_dims (Tuple[int, int, int], optional): resolution of image. Defaults to [1, 32, 32].
+            classifier_free (bool, optional): _description_. Defaults to False.
         """
-        super().__init__(denoise_net, sampler, n_train_steps, img_dims,
-                         gif_frequency, classifier_free)
+
+        super().__init__(denoise_net, sampler, n_train_steps, img_dims, classifier_free)
         self.label_embedder = label_embedder
         self.image_embedder = image_embedder
         self.text_embedder = text_embedder
@@ -77,11 +76,13 @@ class ConditionDiffusionModel(DiffusionModel):
                 cond['text'] = self.get_text_embedding(cond['text'])
         return cond
 
-    def forward(self,
-                x0: Tensor,
-                cond: Dict[str, Tensor],
-                sample_steps: Tensor | None = None,
-                noise: Tensor | None = None) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self,
+        x0: Tensor,
+        cond: Dict[str, Tensor],
+        sample_steps: Tensor | None = None,
+        noise: Tensor | None = None,
+    ) -> Tuple[Tensor, Tensor]:
         """_summary_
         ### forward condition diffusion process to create label for model training
         Args:
@@ -98,34 +99,38 @@ class ConditionDiffusionModel(DiffusionModel):
         return super().forward(x0, sample_steps, noise, cond_embedded)
 
     @torch.no_grad()
-    def sample(self,
-               cond: Dict[str, Tensor],
-               xt: Tensor | None = None,
-               sample_steps: Tensor | None = None,
-               num_sample: int | None = 1,
-               noise: Tensor | None = None,
-               repeat_noise: bool = False,
-               device: torch.device = torch.device('cpu'),
-               prog_bar: bool = False) -> List[Tensor]:
+    def sample(
+        self,
+        cond: Dict[str, Tensor],
+        xt: Tensor | None = None,
+        sample_steps: Tensor | None = None,
+        num_sample: int = 1,
+        noise: Tensor | None = None,
+        repeat_noise: bool = False,
+        device: torch.device = torch.device('cpu'),
+        prog_bar: bool = False,
+        get_all_denoise_images: bool = False,
+    ) -> List[Tensor]:
         """_summary_
         ### reverse condition diffusion process
         Args:
             cond (Dict[str, Tensor]): _description_
             xt (Tensor | None, optional): _description_. Defaults to None.
             sample_steps (Tensor | None, optional): _description_. Defaults to None.
-            num_sample (int | None, optional): _description_. Defaults to 1.
+            num_sample (int, optional): _description_. Defaults to 1.
             noise (Tensor | None, optional): _description_. Defaults to None.
             repeat_noise (bool, optional): _description_. Defaults to False.
             device (torch.device, optional): _description_. Defaults to torch.device('cpu').
             prog_bar (bool, optional): _description_. Defaults to False.
+            get_all_denoise_images (bool, optional): _description_. Defaults to False.
 
         Returns:
             List[Tensor]: _description_
         """
 
         cond_embedded = self.get_cond_embedding(cond.copy())
-        return super().sample(xt, sample_steps, cond_embedded, num_sample,
-                              noise, repeat_noise, device, prog_bar)
+        return super().sample(cond_embedded, xt, sample_steps, num_sample,
+                              noise, repeat_noise, device, prog_bar, get_all_denoise_images)
 
 
 if __name__ == "__main__":
@@ -169,7 +174,7 @@ if __name__ == "__main__":
         print('Input:', x.shape)
         xt = condition_diffusion_model.sampler.step(x, t)
         pred, target = condition_diffusion_model(
-            x, t, cond=cond.copy())  # with given t
+            x, cond=cond.copy(), sample_steps=t)  # with given t
         pred, target = condition_diffusion_model(
             x, cond=cond.copy())  # without given t
         print('xt:', xt.shape)
@@ -180,6 +185,6 @@ if __name__ == "__main__":
         gen_samples = condition_diffusion_model.sample(num_sample=2,
                                                        cond=cond,
                                                        prog_bar=True)
-        print(len(gen_samples), gen_samples[0].shape)
+        print("Gen_samples: ", len(gen_samples), gen_samples[0].shape)
 
     main()

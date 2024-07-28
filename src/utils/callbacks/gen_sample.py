@@ -22,7 +22,7 @@ class GenSample(Callback):
         mean: float,
         std: float,
         n_ensemble: int = 1,
-    ):
+    ) -> None:
         """_summary_
 
         Args:
@@ -64,101 +64,91 @@ class GenSample(Callback):
         #convert range (-1, 1) to (0, 1)
         return (image * self.std + self.mean).clamp(0, 1)
 
-    @torch.no_grad()  # for VAE forward
     def sample(self, pl_module: LightningModule, batch: Any, mode: str):
 
         # avoid out of memory
         n_samples = min(self.grid_shape[0] * self.grid_shape[1],
                         batch[0].shape[0])
 
-        with pl_module.ema_scope():
-            if isinstance(pl_module, VAEModule):
-                targets = batch[0][:n_samples]
-                preds, _ = pl_module.net(targets)  # remove grad
-                samples = pl_module.net.sample(n_samples=n_samples,
-                                               device=pl_module.device)
+        if isinstance(pl_module, UNetModule):
+            masks = batch[0][:n_samples]
+            images = batch[1]["image"][:n_samples]
+            preds = pl_module.predict(images) # range [0, 1]
 
-                targets = self.rescale(targets)
-                preds = self.rescale(preds)
+            self.log_sample([preds, self.rescale(masks), self.rescale(images)],
+                            pl_module=pl_module,
+                            nrow=self.grid_shape[0],
+                            mode=mode,
+                            caption=['preds', 'mask', "image"])
 
-                self.log_sample([samples, preds, targets],
-                                pl_module=pl_module,
-                                nrow=self.grid_shape[0],
-                                mode=mode,
-                                caption=['samples', 'recons_img', 'target'])
+        elif isinstance(pl_module, VAEModule):
+            targets = batch[0][:n_samples]
+            preds = pl_module.predict(targets) # range [0, 1]
+            samples = pl_module.net.sample(n_samples=n_samples,
+                                            device=pl_module.device)
 
-            elif isinstance(pl_module, DiffusionModule):
-                reals = batch[0][:n_samples]
+            self.log_sample([self.rescale(samples), preds, self.rescale(targets)],
+                            pl_module=pl_module,
+                            nrow=self.grid_shape[0],
+                            mode=mode,
+                            caption=['samples', 'recons_img', 'target'])
 
-                conds = None
-                if isinstance(pl_module, ConditionDiffusionModule):
-                    conds = {key: value[:n_samples] for key, value in batch[1].items()}
+        elif isinstance(pl_module, DiffusionModule):
+            reals = batch[0][:n_samples]
 
-                fakes = []
-                for _ in range(self.n_ensemble):
-                    samples = pl_module.net.sample(
-                        num_sample=n_samples,
-                        device=pl_module.device,
-                        cond=conds.copy() if isinstance(
-                            pl_module, ConditionDiffusionModule) else None)
-                    fakes.append(samples[-1])  # b, c, w, h
+            conds = None
+            if isinstance(pl_module, ConditionDiffusionModule):
+                conds = {key: value[:n_samples] for key, value in batch[1].items()}
 
-                fakes = torch.stack(fakes, dim=1)  # b, n ,c, w, h
+            fakes = []
+            for _ in range(self.n_ensemble):
+                samples = pl_module.net.sample(num_sample=n_samples,
+                                                device=pl_module.device,
+                                                cond=conds.copy() if isinstance(
+                                                pl_module, ConditionDiffusionModule) else None) #  range (-1, 1)
+                fakes.append(samples[-1])  # b, c, w, h
 
-                fakes = self.rescale(fakes)
-                reals = self.rescale(reals)
+            fakes = torch.stack(fakes, dim=1)  # b, n ,c, w, h
 
-                # check variance for segmentation task
-                if self.n_ensemble > 1:
-                    self.compute_variance(pl_module, reals, fakes, conds, mode)
+            fakes = self.rescale(fakes) # range [0, 1]
+            reals = self.rescale(reals) # range [0, 1]
 
-                # ensemble. If generation task, only 1 sample -> ensemble to unsqueeze dim 1
-                fakes = fakes.mean(dim=1)  # b, c, w, h
+            # check variance for segmentation task
+            if self.n_ensemble > 1:
+                self.compute_variance(pl_module, reals, fakes, conds, mode)
 
-                self.log_sample(
-                    [fakes, reals, conds['image']] if conds is not None
-                    and 'image' in conds.keys() else [fakes, reals],
-                    pl_module=pl_module,
-                    nrow=self.grid_shape[0],
-                    mode=mode,
-                    caption=['fake', 'real', 'cond'] if conds is not None
-                    and 'image' in conds.keys() else ['fake', 'real'])
-            
-            elif isinstance(pl_module, GANModule):
-                reals = batch[0][:n_samples]
+            # ensemble. If generation task, only 1 sample -> ensemble to unsqueeze dim 1
+            fakes = fakes.mean(dim=1)  # b, c, w, h
 
-                conds = None
-                if isinstance(pl_module, ConditionGANModule):
-                    conds = {key: value[:n_samples] for key, value in batch[1].items()}
+            self.log_sample(
+                [fakes, reals, conds['image']] if conds is not None
+                and 'image' in conds.keys() else [fakes, reals],
+                pl_module=pl_module,
+                nrow=self.grid_shape[0],
+                mode=mode,
+                caption=['fake', 'real', 'cond'] if conds is not None
+                and 'image' in conds.keys() else ['fake', 'real'])
 
-                fakes = pl_module.net.sample(num_sample=n_samples, 
-                                             device=pl_module.device, 
-                                             cond=conds if isinstance(
-                                                 pl_module, ConditionGANModule) else None)
+        elif isinstance(pl_module, GANModule):
+            reals = batch[0][:n_samples]
 
-                reals = self.rescale(reals)
-                fakes = self.rescale(fakes)
+            conds = None
+            if isinstance(pl_module, ConditionGANModule):
+                conds = {key: value[:n_samples] for key, value in batch[1].items()}
 
-                self.log_sample([fakes, reals],
-                                pl_module=pl_module,
-                                nrow=self.grid_shape[0],
-                                mode=mode,
-                                caption=['fake', 'real'])
+            fakes = pl_module.predict(num_sample=n_samples, 
+                                      device=pl_module.device, 
+                                      cond=conds if isinstance(
+                                      pl_module, ConditionGANModule) else None) # range [-1, 1]
 
-            elif isinstance(pl_module, UNetModule):
-                masks = batch[0][:n_samples]
-                images = batch[1]["image"][:n_samples]
-                preds = pl_module.predict(images)
+            self.log_sample([self.rescale(fakes), self.rescale(reals)],
+                            pl_module=pl_module,
+                            nrow=self.grid_shape[0],
+                            mode=mode,
+                            caption=['fake', 'real'])
 
-                self.log_sample([preds, masks, images],
-                                pl_module=pl_module,
-                                nrow=self.grid_shape[0],
-                                mode=mode,
-                                caption=['preds', 'mask', "image"])
-
-
-            else:
-                raise NotImplementedError('This module is not implemented')
+        else:
+            raise NotImplementedError('This module is not implemented')
             
         if batch[0].shape[0] > 1:
             self.interpolation(pl_module=pl_module, images=batch[0][:2],mode=mode)

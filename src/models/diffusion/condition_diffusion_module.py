@@ -12,12 +12,14 @@ from src.models.diffusion.net import ConditionDiffusionModel
 
 class ConditionDiffusionModule(DiffusionModule):
 
-    def __init__(self,
-                 net: ConditionDiffusionModel,
-                 optimizer: Optimizer,
-                 scheduler: lr_scheduler,
-                 use_ema: bool = False,
-                 compile: bool = False) -> None: 
+    def __init__(
+        self,
+        net: ConditionDiffusionModel,
+        optimizer: Optimizer,
+        scheduler: lr_scheduler,
+        use_ema: bool = False,
+        compile: bool = False,
+    ) -> None: 
         
         super().__init__(net, optimizer, scheduler, use_ema, compile)
 
@@ -53,12 +55,14 @@ if __name__ == "__main__":
         cfg['net']['sampler']['n_train_steps'] = 1000
         cfg['net']['img_dims'] = [1, 32, 32]
         cfg['net']['denoise_net']['d_cond_image'] = 1
+        cfg['net']['denoise_net']['in_channels'] = 1
+        cfg['net']['denoise_net']['out_channels'] = 1
         cfg['net']['label_embedder'] = {
             '_target_': 'src.models.components.embeds.LabelEmbedder',
             'n_classes': 2,
             'd_embed': 256,
         }
-        # print(cfg)
+        print(cfg)
 
         condition_diffusion_module: ConditionDiffusionModule = hydra.utils.instantiate(
             cfg)
@@ -71,9 +75,12 @@ if __name__ == "__main__":
             torch.rand_like(x),
         }
         pred, target = condition_diffusion_module(x, cond)
+        loss = condition_diffusion_module.model_step(batch=[x, cond])
+
         print('***** CONDITION DIFFUSION MODEL MODULE *****')
         print('Input:', x.shape)
         print('Prediction:', pred.shape)
         print('Target:', target.shape)
+        print(f"{condition_diffusion_module.criterion._get_name()}:", loss)
 
     main()

@@ -32,7 +32,7 @@ class Metrics(Callback):
         mean: float = 0.5,
         std: float = 0.5,
         n_ensemble: int | None = None,
-    ):
+    ) -> None:
         """_summary_
 
         Args:
@@ -131,46 +131,40 @@ class Metrics(Callback):
         if self.boundary_variance is not None:
             self.boundary_variance.reset()
             
-    @torch.no_grad()  # for VAE forward
     def infer(self, pl_module: LightningModule, batch: Any) -> Tensor:
         
-        # auto use ema
-        with pl_module.ema_scope():
+        if isinstance(pl_module, UNetModule):
+            preds = pl_module.predict(batch[1]["image"])
+            return preds # range [0, 1]
+
+        elif isinstance(pl_module, VAEModule):
+            preds = pl_module.predict(batch[0])
+            return preds # range [0, 1]
+
+        elif isinstance(pl_module, DiffusionModule):
+            fakes = []
+            for _ in range(self.n_ensemble):
+                cond=batch[1].copy() if isinstance(pl_module, ConditionDiffusionModule) else None
+                samples = pl_module.predict(num_sample=batch[0].shape[0],
+                                            device=pl_module.device,
+                                            cond=cond) #  range (-1, 1)
+                fakes.append(samples[-1])  # [b, c, w, h]
             
-            if isinstance(pl_module, VAEModule):
-                recons_img, _ = pl_module.net(batch[0])
-                return recons_img
+            fakes = torch.stack(fakes, dim=1)  # (b, n, c, w, h)
+            
+            return self.rescale(fakes) # range [0, 1]
 
-            elif isinstance(pl_module, UNetModule):
-                preds = pl_module.predict(batch[1]["image"])
-                return preds
+        elif isinstance(pl_module, GANModule):
+            cond=batch[1] if isinstance(pl_module, ConditionGANModule) else None
+            samples = pl_module.predict(num_sample=batch[0].shape[0],
+                                        device=pl_module.device,
+                                        cond=cond) # range [-1, 1]
+            return self.rescale(samples) # range [0, 1]
 
-            elif isinstance(pl_module, GANModule):
-                samples = pl_module.net.sample(num_sample=batch[0].shape[0],
-                                               device=pl_module.device,
-                                               cond=batch[1] if isinstance(pl_module, ConditionGANModule) else None)
-                return samples
-
-            elif isinstance(pl_module, DiffusionModule):
-                fakes = []
-                for _ in range(self.n_ensemble):
-                    samples = pl_module.net.sample(num_sample=batch[0].shape[0],
-                                                   device=pl_module.device,
-                                                   cond=batch[1].copy() if isinstance(pl_module, ConditionDiffusionModule) else None)
-                    fakes.append(samples[-1])  # [b, c, w, h]
-                
-                fakes = torch.stack(fakes, dim=1)  # (b, n, c, w, h)
-                return fakes
-                
-            else:
-                raise NotImplementedError('This module is not implemented')
+        else:
+            raise NotImplementedError('This module is not implemented')
 
     def update_metrics(self, pl_module: LightningModule, batch: Any) -> None:
-        
-        preds = self.infer(pl_module, batch)
-
-        preds = self.rescale(preds)
-        targets = self.rescale(batch[0])
 
         if self.image_variance is not None or self.boundary_variance is not None:
             self.update_variance(preds, pl_module.device)

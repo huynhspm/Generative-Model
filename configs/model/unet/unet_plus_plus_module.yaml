@@ -42,5 +42,12 @@ criterion:
   # Dice Loss
   _target_: segmentation_models_pytorch.losses.DiceLoss
   mode: binary
-  log_loss: true
-  from_logits: true
+
+  # BCE Loss for binary-class or multi-label
+  # _target_: segmentation_models_pytorch.losses.SoftBCEWithLogitsLoss
+  # pos_weights: 
+
+  # CE Loss for multi-class
+  # _target_: segmentation_models_pytorch.losses.SoftCrossEntropyLoss
+  # _target_: torch.nn.CrossEntropyLoss
+  # weights:

@@ -7,7 +7,7 @@ import pyrootutils
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
-from src.models.unet.net import UNetAttention
+from src.models.unet.net import UNetDiffusion
 from src.models.vae import VAEModule
 from src.models.diffusion.sampler import BaseSampler
 from src.models.diffusion.net import ConditionDiffusionModel
@@ -20,7 +20,7 @@ class StableDiffusionModel(ConditionDiffusionModel):
 
     def __init__(
         self,
-        denoise_net: UNetAttention,
+        denoise_net: UNetDiffusion,
         sampler: BaseSampler,
         autoencoder_weight_path: str,
         label_embedder: nn.Module = None,
@@ -28,14 +28,13 @@ class StableDiffusionModel(ConditionDiffusionModel):
         text_embedder: nn.Module = None,
         n_train_steps: int = 1000,
         img_dims: Tuple[int, int, int] = [1, 32, 32],
-        gif_frequency: int = 20,
         latent_scaling_factor: float = 1.0,
         classifier_free: bool = False,
     ) -> None:
         """_summary_
 
         Args:
-            denoise_net (UNetAttention): model to learn noise
+            denoise_net (UNetDiffusion): model to learn noise
             sampler (BaseSampler): sampler for process with image in diffusion
             autoencoder_weight_path (str): _description_
             label_embedder (nn.Module, optional): _description_. Defaults to None.
@@ -43,13 +42,12 @@ class StableDiffusionModel(ConditionDiffusionModel):
             text_embedder (nn.Module, optional): _description_. Defaults to None.
             n_train_steps (int, optional): the number of  diffusion step for forward process. Defaults to 1000.
             img_dims (Tuple[int, int, int], optional): resolution of image - [channels, width, height]. Defaults to [1, 32, 32].
-            gif_frequency (int, optional): _description_. Defaults to 20.
             latent_scaling_factor (float, optional): _description_. Defaults to 1.0.
+            classifier_free (bool, optional): _description_. Defaults to False.
         """
 
         super().__init__(denoise_net, sampler, label_embedder, image_embedder,
-                         text_embedder, n_train_steps, img_dims, gif_frequency,
-                         classifier_free)
+                         text_embedder, n_train_steps, img_dims, classifier_free)
         assert autoencoder_weight_path is not None, "autoencoder_weight_path must not be None"
         self.autoencoder_module: VAEModule = VAEModule.load_from_checkpoint(
             autoencoder_weight_path)
@@ -75,11 +73,13 @@ class StableDiffusionModel(ConditionDiffusionModel):
         return self.autoencoder_module.net.decode(z /
                                                   self.latent_scaling_factor)
 
-    def forward(self,
-                x0: Tensor,
-                cond: Dict[str, Tensor],
-                sample_steps: Tensor | None = None,
-                noise: Tensor | None = None) -> Tuple[Tensor, Tensor]:
+    def forward(
+        self,
+        x0: Tensor,
+        cond: Dict[str, Tensor],
+        sample_steps: Tensor | None = None,
+        noise: Tensor | None = None,
+    ) -> Tuple[Tensor, Tensor]:
         """_summary_
         ### forward stable diffusion process to create label for model training
         Args:
@@ -96,15 +96,18 @@ class StableDiffusionModel(ConditionDiffusionModel):
         return super().forward(z, sample_steps, noise, cond)
 
     @torch.no_grad()
-    def sample(self,
-               cond: Dict[str, Tensor],
-               xt: Tensor | None = None,
-               sample_steps: Tensor | None = None,
-               num_sample: int = 1,
-               noise: Tensor | None = None,
-               repeat_noise: bool = False,
-               device: torch.device = torch.device('cpu'),
-               prog_bar: bool = False) -> List[Tensor]:
+    def sample(
+        self,
+        cond: Dict[str, Tensor],
+        xt: Tensor | None = None,
+        sample_steps: Tensor | None = None,
+        num_sample: int = 1,
+        noise: Tensor | None = None,
+        repeat_noise: bool = False,
+        device: torch.device = torch.device('cpu'),
+        prog_bar: bool = False,
+        get_all_denoise_images: bool = False,
+    ) -> List[Tensor]:
         """_summary_
         ### reverse stable diffusion process
         Args:
@@ -116,13 +119,14 @@ class StableDiffusionModel(ConditionDiffusionModel):
             repeat_noise (bool, optional): _description_. Defaults to False.
             device (torch.device, optional): _description_. Defaults to torch.device('cpu').
             prog_bar (bool, optional): _description_. Defaults to False.
+            get_all_denoise_images (bool, optional): _description_. Defaults to False.
 
         Returns:
             List[Tensor]: _description_
         """
 
-        z_samples = super().sample(xt, sample_steps, cond, num_sample, noise,
-                                   repeat_noise, device, prog_bar)
+        z_samples = super().sample(cond, xt, sample_steps, num_sample, noise,
+                                   repeat_noise, device, prog_bar, get_all_denoise_images)
         return [self.autoencoder_decode(z) for z in z_samples]
 
 

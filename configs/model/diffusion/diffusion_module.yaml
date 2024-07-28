@@ -40,5 +40,4 @@ net:
     n_train_steps: ${model.net.n_train_steps}
     beta_schedule: linear
 
-  gif_frequency: 20
   classifier_free: false
