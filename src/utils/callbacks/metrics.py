@@ -1,4 +1,4 @@
-from typing import Any, Dict
+from typing import Any, Tuple, List
 from pytorch_lightning.utilities.types import STEP_OUTPUT
 import torch
 from torch import Tensor
@@ -21,14 +21,7 @@ class Metrics(Callback):
 
     def __init__(
         self,
-        ssim: StructuralSimilarityIndexMeasure | None = None,
-        psnr: PeakSignalNoiseRatio | None = None,
-        fid: FrechetInceptionDistance | None = None,
-        IS: InceptionScore | None = None,
-        dice: Dice | None = None,
-        iou: JaccardIndex | None = None,
-        image_variance: MeanMetric | None = None,
-        boundary_variance: MeanMetric | None = None,
+        metric_list: List[str],
         mean: float = 0.5,
         std: float = 0.5,
         n_ensemble: int | None = None,
@@ -36,110 +29,454 @@ class Metrics(Callback):
         """_summary_
 
         Args:
-            ssim (StructuralSimilarityIndexMeasure | None, optional): metrics for VAE. Defaults to None.
-            psnr (PeakSignalNoiseRatio | None, optional): metrics for VAE. Defaults to None.
-            fid (FrechetInceptionDistance | None, optional): metrics for generation task (diffusion, gan). Defaults to None.
-            IS (InceptionScore | None, optional): metrics for generation task (not good - weight of inception-v3). Defaults to None.
-            dice (Dice | None, optional): metrics for segmentation task. Defaults to None.
-            iou (JaccardIndex | None, optional): metrics for segmentation task. Defaults to None.
-            image_variance (MeanMetric | None, optional): _description_. Defaults to None.
-            boundary_variance (MeanMetric | None, optional): _description_. Defaults to None.
+            metric_list (List[str]): _description_
             mean (float, optional): to convert image into (0, 1). Defaults to 0.5.
             std (float, optional): to convert image into (0, 1). Defaults to 0.5.
             n_ensemble (int, optional): for segmentation with diffusion model. Defaults to 1.
         """
 
-        self.ssim = ssim
-        self.psnr = psnr
-        self.fid = fid
-        self.IS = IS
-        self.dice = dice
-        self.iou = iou
-        self.image_variance = image_variance
-        self.boundary_variance = boundary_variance
+        for metric in metric_list:
+            if metric == "binary-dice":
+                self.train_dice = Dice(ignore_index=0)
+                self.val_dice = Dice(ignore_index=0)
+                self.test_dice = Dice(ignore_index=0)
 
+            elif metric == "binary-iou":
+                self.train_iou = JaccardIndex(task="binary")
+                self.val_iou = JaccardIndex(task="binary")
+                self.test_iou = JaccardIndex(task="binary")
+
+            elif metric == "ssim":
+                self.train_ssim = StructuralSimilarityIndexMeasure(data_range=2.)
+                self.val_ssim = StructuralSimilarityIndexMeasure(data_range=2.)
+                self.test_ssim = StructuralSimilarityIndexMeasure(data_range=2.)
+
+            elif metric == "psnr":
+                self.train_psnr = PeakSignalNoiseRatio(data_range=2.)
+                self.val_psnr = PeakSignalNoiseRatio(data_range=2.)
+                self.test_psnr = PeakSignalNoiseRatio(data_range=2.)
+
+            # Check: GPU if use train,val,test. save memory
+            elif metric == "fid":
+                self.train_fid = FrechetInceptionDistance(normalize=True)
+                self.val_fid = FrechetInceptionDistance(normalize=True)
+                self.test_fid = FrechetInceptionDistance(normalize=True)
+
+            elif metric == "is":
+                self.val_is = InceptionScore(normalize=True)
+                self.test_is = InceptionScore(normalize=True)
+
+            elif metric == "image_variance":
+                self.train_image_variance = MeanMetric()
+                self.val_image_variance = MeanMetric()
+                self.test_image_variance = MeanMetric()
+            
+            elif metric == "boundary_variance":
+                self.train_boundary_variance = MeanMetric()
+                self.val_boundary_variance = MeanMetric()
+                self.test_boundary_variance = MeanMetric()
+
+            else:
+                NotImplementedError(f"Not implemented for {metric} metric")
+
+        self.metric_list = metric_list
         self.mean = mean
         self.std = std
         self.n_ensemble = n_ensemble
 
-    # def on_train_epoch_start(self, trainer: Trainer,
-    #                          pl_module: LightningModule) -> None:
-    #     self.reset_metrics()
+    def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        device = pl_module.device
 
-    # def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule,
-    #                        outputs: STEP_OUTPUT, batch: Any,
-    #                        batch_idx: int) -> None:
-    #     self.update_metrics(pl_module, batch)
+        if "binary-dice" in self.metric_list:
+            self.train_dice.to(device)
+            self.val_dice.to(device)
+            self.test_dice.to(device)
 
-    # def on_train_epoch_end(self, trainer: Trainer,
-    #                        pl_module: LightningModule) -> None:
-    #     self.log_metrics(pl_module, mode='train')
+        if "binary-iou" in self.metric_list:
+            self.train_iou.to(device)
+            self.val_iou.to(device)
+            self.test_iou.to(device)
 
-    def on_validation_epoch_start(self, trainer: Trainer,
-                                  pl_module: LightningModule) -> None:
-        self.reset_metrics()
+        if "ssim" in self.metric_list:
+            self.train_ssim.to(device)
+            self.val_ssim.to(device)
+            self.test_ssim.to(device)
+
+        if "psnr" in self.metric_list:
+            self.train_psnr.to(device)
+            self.val_psnr.to(device)
+            self.test_psnr.to(device)
+
+        if "image_variance" in self.metric_list:
+            self.train_image_variance.to(device)
+            self.val_image_variance.to(device)
+            self.test_image_variance.to(device)
+
+        if "boundary_variance" in self.metric_list:
+            self.train_boundary_variance.to(device)
+            self.val_boundary_variance.to(device)
+            self.test_boundary_variance.to(device)
+
+        if "fid" in self.metric_list:
+            self.val_fid.to(device)
+            self.test_fid.to(device)
+
+        if "is" in self.metric_list:
+            self.val_is.to(device)
+            self.test_is.to(device)
+
+    def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        """Lightning hook that is called when training begins."""
+        # by default lightning executes validation step sanity checks before training starts,
+        # so it's worth to make sure validation metrics don't store results from these checks
+
+        if "binary-dice" in self.metric_list:
+            self.val_dice.reset()
+
+        if "binary-iou" in self.metric_list:
+            self.val_iou.reset()
+
+        if "ssim" in self.metric_list:
+            self.val_ssim.reset()
+
+        if "psnr" in self.metric_list:
+            self.val_psnr.reset()
+
+        if "image_variance" in self.metric_list:
+            self.val_image_variance.reset()
+
+        if "boundary_variance" in self.metric_list:
+            self.val_boundary_variance.reset()
+
+    def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule,
+                        outputs: STEP_OUTPUT, batch: Any,
+                        batch_idx: int) -> None:
+
+        preds, targets = self.infer(pl_module, batch) # range [0, 1]
+
+        if "image_variance" in self.metric_list or "boundary_variance" in self.metric_list:
+            # (b, n, c, w, h) -> (b, c, w, h)
+            variance = ((preds > 0.5).to(torch.float32)).var(dim=1)
+
+            if "image_variance" in self.metric_list:
+                self.train_image_variance.update(variance.mean())
+
+                pl_module.log("train/image_variance",
+                            self.train_image_variance,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=False,
+                            sync_dist=True,
+                            metric_attribute="train_image_variance")
+
+            if "boundary_variance" in self.metric_list:
+                boundary = variance > 0
+                boundary_variance = ((variance).sum(dim=[1, 2, 3]) + \
+                                    1) / (boundary.sum(dim=[1, 2, 3]) + 1)
+                self.train_boundary_variance.update(boundary_variance)
+
+                pl_module.log("train/boundary_variance",
+                            self.train_boundary_variance,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=False,
+                            sync_dist=True,
+                            metric_attribute="train_boundary_variance")
+
+        if len(preds.shape) == 5: # [b, n, c, w, h]
+            preds = preds.mean(dim=1)
+
+        if "ssim" in self.metric_list:
+            self.train_ssim(preds, targets)
+            pl_module.log("train/ssim",
+                        self.train_ssim,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="train_ssim")
+
+        if "psnr" in self.metric_list:
+            self.train_psnr(preds, targets)
+            pl_module.log("train/psnr",
+                        self.train_psnr,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="train_psnr")
+
+        if "binary-dice" in self.metric_list or "binary-iou" in self.metric_list:
+            preds = preds.to(torch.int64)
+            targets = targets.to(torch.int64)
+
+            if "binary-dice" in self.metric_list:
+                self.train_dice(preds, targets)
+                pl_module.log("train/dice",
+                        self.train_dice,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="train_dice")
+
+            if "binary-iou" in self.metric_list:
+                self.train_iou(preds, targets)
+                pl_module.log("train/iou",
+                        self.train_iou,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="train_iou")
 
     def on_validation_batch_end(self, trainer: Trainer,
                                 pl_module: LightningModule,
                                 outputs: STEP_OUTPUT | None, batch: Any,
                                 batch_idx: int, dataloader_idx: int) -> None:
-        self.update_metrics(pl_module, batch)
 
-    def on_validation_epoch_end(self, trainer: Trainer,
-                                pl_module: LightningModule) -> None:
-        self.log_metrics(pl_module, mode='val')
+        preds, targets = self.infer(pl_module, batch) # range [0, 1]
 
-    def on_test_epoch_start(self, trainer: Trainer,
-                            pl_module: LightningModule) -> None:
-        self.reset_metrics()
+        if "image_variance" in self.metric_list or "boundary_variance" in self.metric_list:
+            # (b, n, c, w, h) -> (b, c, w, h)
+            variance = ((preds > 0.5).to(torch.float32)).var(dim=1)
+
+            if "image_variance" in self.metric_list:
+                self.val_image_variance.update(variance.mean())
+
+                pl_module.log("val/image_variance",
+                            self.val_image_variance,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=False,
+                            sync_dist=True,
+                            metric_attribute="val_image_variance")
+
+            if "boundary_variance" in self.metric_list:
+                boundary = variance > 0
+                boundary_variance = ((variance).sum(dim=[1, 2, 3]) + \
+                                    1) / (boundary.sum(dim=[1, 2, 3]) + 1)
+                self.val_boundary_variance.update(boundary_variance)
+
+                pl_module.log("val/boundary_variance",
+                            self.val_boundary_variance,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=False,
+                            sync_dist=True,
+                            metric_attribute="val_boundary_variance")
+
+        if len(preds.shape) == 5: # [b, n, c, w, h]
+            preds = preds.mean(dim=1)
+
+        if "ssim" in self.metric_list:
+            self.val_ssim(preds, targets)
+            pl_module.log("val/ssim",
+                        self.val_ssim,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="val_ssim")
+
+        if "psnr" in self.metric_list:
+            self.val_psnr(preds, targets)
+            pl_module.log("val/psnr",
+                        self.val_psnr,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="val_psnr")
+
+        if "binary-dice" in self.metric_list or "binary-iou" in self.metric_list:
+            preds = preds.to(torch.int64)
+            targets = targets.to(torch.int64)
+
+            if "binary-dice" in self.metric_list:
+                self.val_dice(preds, targets)
+                pl_module.log("val/dice",
+                        self.val_dice,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="val_dice")
+
+            if "binary-iou" in self.metric_list:
+                self.val_iou(preds, targets)
+                pl_module.log("val/iou",
+                        self.val_iou,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="val_iou")
+
+        if "fid" in self.metric_list or "is" in self.metric_list:
+
+            if preds.shape[1] == 1:
+                # gray to rgb image
+                fakes = torch.cat([preds, preds, preds], dim=1)
+                reals = torch.cat([targets, targets, targets], dim=1)
+
+            reals = torch.nn.functional.interpolate(reals,
+                                                    size=(299, 299),
+                                                    mode="bilinear")
+            fakes = torch.nn.functional.interpolate(fakes,
+                                                    size=(299, 299),
+                                                    mode="bilinear")
+
+            if "fid" in self.metric_list:
+
+                self.val_fid.update(reals, real=True)
+                self.val_fid.update(fakes, real=False)
+
+                pl_module.log("val/fid",
+                        self.val_fid,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="val_fid")
+
+            if "is" in self.metric_list:
+                self.val_is(fakes)
+
+    def on_validation_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        if "is" in self.metric_list:
+            score, std = self.val_is.compute()
+            pl_module.log("val/is", score, metric_attribute="val_is")
+            self.val_is.reset()
 
     def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule,
-                          outputs: STEP_OUTPUT | None, batch: Any,
-                          batch_idx: int, dataloader_idx: int) -> None:
-        self.update_metrics(pl_module, batch)
+                        outputs: STEP_OUTPUT | None, batch: Any,
+                        batch_idx: int, dataloader_idx: int) -> None:
 
-    def on_test_epoch_end(self, trainer: Trainer,
-                          pl_module: LightningModule) -> None:
-        self.log_metrics(pl_module, mode='test')
+        preds, targets = self.infer(pl_module, batch) # range [0, 1]
+
+        if "image_variance" in self.metric_list or "boundary_variance" in self.metric_list:
+            # (b, n, c, w, h) -> (b, c, w, h)
+            variance = ((preds > 0.5).to(torch.float32)).var(dim=1)
+
+            if "image_variance" in self.metric_list:
+                self.test_image_variance.update(variance.mean())
+
+                pl_module.log("test/image_variance",
+                            self.test_image_variance,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=False,
+                            sync_dist=True,
+                            metric_attribute="test_image_variance")
+
+            if "boundary_variance" in self.metric_list:
+                boundary = variance > 0
+                boundary_variance = ((variance).sum(dim=[1, 2, 3]) + \
+                                    1) / (boundary.sum(dim=[1, 2, 3]) + 1)
+                self.test_boundary_variance.update(boundary_variance)
+
+                pl_module.log("test/boundary_variance",
+                            self.test_boundary_variance,
+                            on_step=False,
+                            on_epoch=True,
+                            prog_bar=False,
+                            sync_dist=True,
+                            metric_attribute="test_boundary_variance")
+
+        if len(preds.shape) == 5: # [b, n, c, w, h]
+            preds = preds.mean(dim=1)
+
+        if "ssim" in self.metric_list:
+            self.test_ssim(preds, targets)
+            pl_module.log("test/ssim",
+                        self.test_ssim,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="test_ssim")
+
+        if "psnr" in self.metric_list:
+            self.test_psnr(preds, targets)
+            pl_module.log("test/psnr",
+                        self.test_psnr,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="test_psnr")
+
+        if "binary-dice" in self.metric_list or "binary-iou" in self.metric_list:
+            preds = preds.to(torch.int64)
+            targets = targets.to(torch.int64)
+
+            if "binary-dice" in self.metric_list:
+                self.test_dice(preds, targets)
+                pl_module.log("test/dice",
+                        self.test_dice,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="test_dice")
+
+            if "binary-iou" in self.metric_list:
+                self.test_iou(preds, targets)
+                pl_module.log("test/iou",
+                        self.test_iou,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="test_iou")
+
+        if "fid" in self.metric_list or "is" in self.metric_list:
+
+            if preds.shape[1] == 1:
+                # gray to rgb image
+                fakes = torch.cat([preds, preds, preds], dim=1)
+                reals = torch.cat([targets, targets, targets], dim=1)
+
+            reals = torch.nn.functional.interpolate(reals,
+                                                    size=(299, 299),
+                                                    mode="bilinear")
+            fakes = torch.nn.functional.interpolate(fakes,
+                                                    size=(299, 299),
+                                                    mode="bilinear")
+
+            if "fid" in self.metric_list:
+                self.test_fid.update(reals, real=True)
+                self.test_fid.update(fakes, real=False)
+
+                pl_module.log("test/fid",
+                        self.test_fid,
+                        on_step=False,
+                        on_epoch=True,
+                        prog_bar=False,
+                        sync_dist=True,
+                        metric_attribute="test_fid")
+
+            if "is" in self.metric_list:
+                self.test_is.update(fakes)
+
+    def on_test_epoch_end(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        if "is" in self.metric_list:
+            score, std = self.test_is.compute()
+            pl_module.log("test/is", score, metric_attribute="test_is")
+            self.test_is.reset()
 
     def rescale(self, image: Tensor) -> Tensor:
         #convert range (-1, 1) to (0, 1)
         return (image * self.std + self.mean).clamp(0, 1)
 
-    def reset_metrics(self) -> None:
-        if self.ssim is not None:
-            self.ssim.reset()
-
-        if self.psnr is not None:
-            self.psnr.reset()
-
-        if self.fid is not None:
-            self.fid.reset()
-
-        if self.IS is not None:
-            self.IS.reset()
-
-        if self.dice is not None:
-            self.dice.reset()
-
-        if self.iou is not None:
-            self.iou.reset()
-
-        if self.image_variance is not None:
-            self.image_variance.reset()
-
-        if self.boundary_variance is not None:
-            self.boundary_variance.reset()
-            
-    def infer(self, pl_module: LightningModule, batch: Any) -> Tensor:
+    def infer(self, pl_module: LightningModule, batch: Any) -> Tuple[Tensor, Tensor]:
         
         if isinstance(pl_module, UNetModule):
-            preds = pl_module.predict(batch[1]["image"])
-            return preds # range [0, 1]
+            preds = pl_module.predict(batch[1]["image"]) # range [0, 1]
 
         elif isinstance(pl_module, VAEModule):
-            preds = pl_module.predict(batch[0])
-            return preds # range [0, 1]
+            preds = pl_module.predict(batch[0]) # range [0, 1]
 
         elif isinstance(pl_module, DiffusionModule):
             fakes = []
@@ -151,181 +488,17 @@ class Metrics(Callback):
                 fakes.append(samples[-1])  # [b, c, w, h]
             
             fakes = torch.stack(fakes, dim=1)  # (b, n, c, w, h)
-            
-            return self.rescale(fakes) # range [0, 1]
+            preds = self.rescale(fakes) # range [0, 1]
 
         elif isinstance(pl_module, GANModule):
             cond=batch[1] if isinstance(pl_module, ConditionGANModule) else None
             samples = pl_module.predict(num_sample=batch[0].shape[0],
                                         device=pl_module.device,
                                         cond=cond) # range [-1, 1]
-            return self.rescale(samples) # range [0, 1]
+            preds = self.rescale(samples) # range [0, 1]
 
         else:
-            raise NotImplementedError('This module is not implemented')
+            raise NotImplementedError("This module is not implemented")
 
-    def update_metrics(self, pl_module: LightningModule, batch: Any) -> None:
-        
-        targets = self.rescale(batch[0]) # range [0, 1]
-        preds = self.infer(pl_module, batch)
+        return preds, self.rescale(batch[0]) # range [0, 1]
 
-        if self.image_variance is not None or self.boundary_variance is not None:
-            self.update_variance(preds, pl_module.device)
-
-        if len(preds.shape) == 5: # [b, n, c, w, h]
-            preds = preds.mean(dim=1)
-
-        # update
-        if self.ssim is not None:
-            self.ssim.to(pl_module.device)
-            self.ssim.update(preds, targets)
-            self.ssim.to('cpu')
-
-        if self.psnr is not None:
-            self.psnr.to(pl_module.device)
-            self.psnr.update(preds, targets)
-            self.psnr.to('cpu')
-
-        if self.dice is not None or self.iou is not None:
-            preds = preds.to(torch.int64)
-            targets = targets.to(torch.int64)
-
-            if self.dice is not None:
-                self.dice.to(pl_module.device)
-                self.dice.update(preds, targets)
-                self.dice.to('cpu')
-
-            if self.iou is not None:
-                self.iou.to(pl_module.device)
-                self.iou.update(preds, targets)
-                self.iou.to('cpu')
-
-        if self.fid is not None or self.IS is not None:
-            if preds.shape[1] == 1:
-                # gray to rgb image
-                fakes = torch.cat([preds, preds, preds], dim=1)
-                reals = torch.cat([targets, targets, targets], dim=1)
-            
-            reals = torch.nn.functional.interpolate(reals,
-                                                    size=(299, 299),
-                                                    mode='bilinear')
-            fakes = torch.nn.functional.interpolate(fakes,
-                                                    size=(299, 299),
-                                                    mode='bilinear')
-
-            if self.fid is not None:
-                self.fid.to(pl_module.device)
-                self.fid.update(reals, real=True)
-                self.fid.update(fakes, real=False)
-                self.fid.to('cpu')
-
-            if self.IS is not None:
-                self.IS.to(pl_module.device)
-                self.IS.update(fakes)
-                self.IS.to('cpu')
-
-    def update_variance(self, preds: Tensor, device: torch.device) -> None:
-
-        # (b, n, c, w, h) -> (b, c, w, h)
-        variance = ((preds > 0.5).to(torch.float32)).var(dim=1)
-
-        if self.image_variance is not None:
-            self.image_variance.to(device)
-            self.image_variance.update(variance.mean())
-            self.image_variance.to('cpu')
-
-        if self.boundary_variance is not None:
-            boundary = variance > 0
-            boundary_variance = ((variance).sum(dim=[1, 2, 3]) +
-                                 1) / (boundary.sum(dim=[1, 2, 3]) + 1)
-            self.boundary_variance.to(device)
-            self.boundary_variance.update(boundary_variance)
-            self.boundary_variance.to('cpu')
-
-    def log_metrics(self, pl_module: LightningModule, mode: str) -> None:
-
-        if self.image_variance is not None:
-            self.image_variance.to(pl_module.device)
-            pl_module.log(mode + '/image_variance',
-                          self.image_variance.compute(),
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.image_variance.to('cpu')
-
-        if self.boundary_variance is not None:
-            self.boundary_variance.to(pl_module.device)
-            pl_module.log(mode + '/boundary_variance',
-                          self.boundary_variance.compute(),
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.boundary_variance.to('cpu')
-
-        if self.ssim is not None:
-            self.ssim.to(pl_module.device)
-            pl_module.log(mode + '/ssim',
-                          self.ssim.compute(),
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.ssim.to('cpu')
-
-        if self.psnr is not None:
-            self.psnr.to(pl_module.device)
-            pl_module.log(mode + '/psnr',
-                          self.psnr.compute(),
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.psnr.to('cpu')
-
-        if self.dice is not None:
-            self.dice.to(pl_module.device)
-            pl_module.log(mode + '/dice',
-                          self.dice.compute(),
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.dice.to('cpu')
-
-        if self.iou is not None:
-            self.iou.to(pl_module.device)
-            pl_module.log(mode + '/iou',
-                          self.iou.compute(),
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.iou.to('cpu')
-
-        if self.fid is not None:
-            self.fid.to(pl_module.device)
-            pl_module.log(mode + '/fid',
-                          self.fid.compute(),
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.fid.to('cpu')
-
-        if self.IS is not None:
-            self.IS.to(pl_module.device)
-            mean, std = self.IS.compute()
-            range = {
-                'min': mean - std,
-                'max': mean + std,
-            }
-
-            pl_module.log(mode + '/is',
-                          range,
-                          on_step=False,
-                          on_epoch=True,
-                          prog_bar=False,
-                          sync_dist=True)
-            self.IS.to('cpu')

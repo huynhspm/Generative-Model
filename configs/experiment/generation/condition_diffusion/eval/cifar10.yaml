@@ -59,3 +59,9 @@ logger:
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
 ckpt_path: null # simply provide checkpoint path to resume training
+
+callbacks:
+  metrics:
+    metric_list:
+      - fid
+      - is

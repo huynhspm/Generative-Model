@@ -19,13 +19,6 @@ model_summary:
   max_depth: -1
 
 metrics:
-  _target_: src.utils.callbacks.Metrics
-  dice:
-    _target_: torchmetrics.Dice
-    average: micro
-    ignore_index: 0
-  iou:
-    _target_: torchmetrics.JaccardIndex
-    average: micro
-    task: binary
-    # ignore_index: 0 # error from torchmetrics
+  metric_list:
+    - binary-dice
+    - binary-iou

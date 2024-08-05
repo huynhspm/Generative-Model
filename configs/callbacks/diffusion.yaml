@@ -19,16 +19,9 @@ model_summary:
   max_depth: -1
 
 metrics:
-  _target_: src.utils.callbacks.Metrics
+  metric_list:
+    - fid
   n_ensemble: 1
-  fid:
-    _target_: torchmetrics.image.FrechetInceptionDistance
-    feature: 2048
-    normalize: True
-  IS:
-    _target_: torchmetrics.image.InceptionScore
-    feature: 2048
-    normalize: True
 
 gen_sample:
   n_ensemble: 1

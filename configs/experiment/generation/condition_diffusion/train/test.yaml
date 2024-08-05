@@ -52,6 +52,3 @@ logger:
 
 ckpt_path: null # simply provide checkpoint path to resume training
 
-callbacks:
-  metrics:
-    IS: null
