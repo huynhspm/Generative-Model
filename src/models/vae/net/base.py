@@ -9,7 +9,7 @@ from abc import abstractmethod
 class BaseVAE(nn.Module):
 
     def __init__(self) -> None:
-        super(BaseVAE, self).__init__()
+        super().__init__()
 
     def encode(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         raise NotImplementedError
@@ -17,20 +17,21 @@ class BaseVAE(nn.Module):
     def decode(self, z: Tensor) -> Tensor:
         raise NotImplementedError
 
-    def sample(self, n_samples: int, device: str = 'cpu') -> Tensor:
-        """
-        Samples from the latent space and return the corresponding
-        image space map.
-        :param num_samples: (Int) Number of samples
-        :param device: (Int) Device to run the model
-        :return: (Tensor)
-        """
-        z = torch.randn(n_samples, self.latent_dims[0], self.latent_dims[1],
-                        self.latent_dims[2])
+    @torch.no_grad()
+    def sample(self, n_samples: int, device: str = torch.device("cpu")) -> Tensor:
+        """_summary_
+        Samples from the latent space and return the corresponding image space map.
+        Args:
+            n_samples (int): Number of samples
+            device (str, optional): Device to run the model. Defaults to torch.device("cpu").
 
-        z = z.to(device)
-        samples = self.decode(z)
-        return samples
+        Returns:
+            Tensor: _description_
+        """
+
+        z = torch.randn(n_samples, self.latent_dims[0], self.latent_dims[1],
+                        self.latent_dims[2], device=device)
+        return self.decode(z)
 
     @abstractmethod
     def forward(self, img: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:

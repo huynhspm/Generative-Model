@@ -1,0 +1,13 @@
+_target_: src.models.components.up_down.Encoder
+
+in_channels: 3
+z_channels: 3
+base_channels: 64
+block: Residual
+n_layer_blocks: 1
+drop_rate: 0.
+channel_multipliers: [1, 2, 4]
+attention: Attention
+n_attention_heads: null
+n_attention_layers: null
+double_z: false

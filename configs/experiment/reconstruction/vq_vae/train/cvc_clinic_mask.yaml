@@ -1,7 +1,7 @@
 # @package _global_
 
 # to execute this experiment run:
-# python src/train.py experiment=reconstruction/vq_vae/cvc_clinic_image
+# python src/train.py experiment=reconstruction/vq_vae/train/cvc_clinic_mask
 
 defaults:
   - override /data: cvc_clinic.yaml
@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_reconstruction_vae"
+task_name: "reconstruction_vae/train"
 
 trainer:
   max_epochs: 50
@@ -29,14 +29,18 @@ data:
 
 model:
   net:
-    # encode 3x256x256 to 3x64x64
-    z_channels: 3
+    # encode 1x256x256 to 1x64x64
+    img_dims:
+      - 1
+      - ${data.image_size}
+      - ${data.image_size}
+    z_channels: 1
     base_channels: 64
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "vae"
+    project: "reconstruction_vae"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
@@ -49,10 +53,12 @@ callbacks:
   metrics:
     dice:
       _target_: torchmetrics.Dice
+
       average: micro
       ignore_index: 0
     iou:
       _target_: torchmetrics.JaccardIndex
+
       average: micro
       task: binary
       # ignore_index: 0

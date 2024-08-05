@@ -14,7 +14,9 @@ scheduler:
   gamma: 0.95
 
 net:
-  _target_: src.models.vae.net.VQVAE
+  _target_: src.models.vae.net.BetaVAE
+
+  kld_weight: 0.00025 # al_img.shape[0]/ self.num_train_images
 
   encoder:
     _target_: src.models.components.up_down.Encoder
@@ -29,7 +31,7 @@ net:
     attention: Attention
     n_attention_heads: null
     n_attention_layers: null
-    double_z: false
+    double_z: true
 
   decoder:
     _target_: src.models.components.up_down.Decoder
@@ -46,12 +48,11 @@ net:
     n_attention_layers: ${model.net.encoder.n_attention_layers}
 
   latent_dims: [3, 8, 8]
-
-  vq_layer:
-    _target_: src.models.vae.net.VectorQuantizer
-    num_embeddings: 512
-    embedding_dim: ${model.net.latent_dims[0]}
-    beta: 0.25
+  beta: 4
+  gamma: 1000.
+  max_capacity: 25
+  Capacity_max_iter: 1e5
+  loss_type: B
 
 criterion: 
   _target_: torch.nn.MSELoss

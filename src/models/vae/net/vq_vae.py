@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import Tuple, Dict
 
 import torch
 import pyrootutils
@@ -18,11 +18,13 @@ class VectorQuantizer(nn.Module):
     [1] https://github.com/deepmind/sonnet/blob/v2/sonnet/src/nets/vqvae.py
     """
 
-    def __init__(self,
-                 num_embeddings: int,
-                 embedding_dim: int,
-                 beta: float = 0.25):
-        super(VectorQuantizer, self).__init__()
+    def __init__(
+        self,
+        num_embeddings: int,
+        embedding_dim: int,
+        beta: float = 0.25,
+    ) -> None:
+        super().__init__()
         self.K = num_embeddings
         self.D = embedding_dim
         self.beta = beta
@@ -71,58 +73,31 @@ class VectorQuantizer(nn.Module):
 
 
 class VQVAE(BaseVAE):
-    """
-    ## AutoEncoder
 
-    This consists of the encoder and decoder modules.
-    """
-
-    def __init__(self,
-                 img_dims: int,
-                 z_channels: int = 3,
-                 base_channels: int = 64,
-                 num_embeddings: int = 512,
-                 beta: float = 0.25,
-                 block: str = 'Residual',
-                 n_layer_blocks: int = 1,
-                 channel_multipliers: List[int] = [1, 2, 4],
-                 attention: str = 'Attention') -> None:
+    def __init__(
+        self,
+        latent_dims: Tuple[int, int, int],
+        vq_layer: VectorQuantizer,
+        encoder: Encoder,
+        decoder: Decoder,
+    ) -> None:
         """_summary_
 
         Args:
-            img_dims (int): _description_
-            z_channels (int, optional): _description_. Defaults to 64.
-            base_channels (int, optional): _description_. Defaults to 32.
-            num_embeddings (int, optional): _description_. Defaults to 512.
-            beta (float, optional): _description_. Defaults to 0.25.
-            block (str, optional): _description_. Defaults to 'Residual'.
-            n_layer_blocks (int, optional): _description_. Defaults to 1.
-            channel_multipliers (List[int], optional): _description_. Defaults to [1, 2, 4].
-            attention (str, optional): _description_. Defaults to 'Attention'.
+            latent_dims (Tuple[int, int, int]): _description_
+            vq_layer (VectorQuantizer): _description_
+            encoder (Encoder): _description_
+            decoder (Decoder): _description_
         """
-        super(VQVAE, self).__init__()
-        self.encoder = Encoder(in_channels=img_dims[0],
-                               base_channels=base_channels,
-                               z_channels=z_channels,
-                               block=block,
-                               n_layer_blocks=n_layer_blocks,
-                               channel_multipliers=channel_multipliers,
-                               attention=attention)
 
-        self.decoder = Decoder(out_channels=img_dims[0],
-                               base_channels=base_channels,
-                               z_channels=z_channels,
-                               block=block,
-                               n_layer_blocks=n_layer_blocks,
-                               channel_multipliers=channel_multipliers,
-                               attention=attention)
+        super().__init__()
 
-        self.vq_layer = VectorQuantizer(num_embeddings, z_channels, beta)
-        self.latent_dims = [
-            z_channels,
-            int(img_dims[1] / (1 << (len(channel_multipliers) - 1))),
-            int(img_dims[2] / (1 << (len(channel_multipliers) - 1)))
-        ]
+        self.latent_dims = latent_dims
+        self.vq_layer = vq_layer
+        self.encoder = encoder
+        self.decoder = decoder
+        self.vq_layer = vq_layer
+        
 
     def encode(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         """
@@ -164,19 +139,31 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="vq_vae.yaml")
     def main(cfg: DictConfig):
-        # print(cfg)
+        cfg["encoder"]["z_channels"] = 3
+        cfg["decoder"]["z_channels"] = 3
+        cfg["decoder"]["base_channels"] = 64
+        cfg["decoder"]["block"] = "Residual"
+        cfg["decoder"]["n_layer_blocks"] = 1
+        cfg["decoder"]["drop_rate"] = 0.
+        cfg["decoder"]["attention"] = "Attention"
+        cfg["decoder"]["channel_multipliers"] = [1, 2, 3]
+        cfg["decoder"]["n_attention_heads"] = None
+        cfg["decoder"]["n_attention_layers"] = None
+        cfg["vq_layer"]["embedding_dim"] = 3
+        print(cfg)
+        
         vq_vae: VQVAE = hydra.utils.instantiate(cfg)
         x = torch.randn(2, 3, 32, 32)
 
-        x_encoded, vq_loss = vq_vae.encode(x)
-        out, vq_loss = vq_vae(x)
+        z, vq_loss = vq_vae.encode(x)
+        output, vq_loss = vq_vae(x)
         sample = vq_vae.sample(n_samples=2)
 
         print('***** VQVAE *****')
         print('Input:', x.shape)
-        print('Encode:', x_encoded.shape)
+        print('Encode:', z.shape)
         print('VQ_Loss:', vq_loss)
-        print('Output:', out.shape)
+        print('Decode:', output.shape)
         print('Sample:', sample.shape)
 
     main()

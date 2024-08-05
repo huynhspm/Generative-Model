@@ -1,10 +1,10 @@
 # @package _global_
 
 # to execute this experiment run:
-# python src/train.py experiment=reconstruction/vq_vae/brats2020_mask
+# python src/train.py experiment=reconstruction/vq_vae/train/isic2018_mask
 
 defaults:
-  - override /data: brats2020.yaml
+  - override /data: isic2018.yaml
   - override /model: vae/vq_vae_module.yaml
   - override /callbacks: vae.yaml
   - override /trainer: ddp.yaml
@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "train_reconstruction_vae"
+task_name: "reconstruction_vae/train"
 
 trainer:
   max_epochs: 50
@@ -40,7 +40,7 @@ model:
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "vae"
+    project: "reconstruction_vae"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

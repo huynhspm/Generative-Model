@@ -1,12 +1,32 @@
 _target_: src.models.vae.net.AutoEncoder
 
-img_dims:
-  - 3
-  - 32
-  - 32
-z_channels: 3
-base_channels: 64
-block: Residual
-n_layer_blocks: 1
-channel_multipliers: [1, 2, 4]
-attention: Attention
+encoder:
+  _target_: src.models.components.up_down.Encoder
+
+  in_channels: 3
+  z_channels: ${model.net.latent_dims[0]}
+  base_channels: 64
+  block: Residual
+  n_layer_blocks: 1
+  drop_rate: 0.
+  channel_multipliers: [1, 2, 4]
+  attention: Attention
+  n_attention_heads: null
+  n_attention_layers: null
+  double_z: false
+
+decoder:
+  _target_: src.models.components.up_down.Decoder
+
+  out_channels: 3
+  z_channels: ${model.net.latent_dims[0]}
+  base_channels: ${model.net.encoder.base_channels}
+  block: ${model.net.encoder.block}
+  n_layer_blocks: ${model.net.encoder.n_layer_blocks}
+  drop_rate: ${model.net.encoder.drop_rate}
+  channel_multipliers: ${model.net.encoder.channel_multipliers}
+  attention: ${model.net.encoder.attention}
+  n_attention_heads: ${model.net.encoder.n_attention_heads}
+  n_attention_layers: ${model.net.encoder.n_attention_layers}
+
+latent_dims: [3, 8, 8]

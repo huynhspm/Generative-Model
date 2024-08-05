@@ -1,4 +1,4 @@
-_target_: src.models.vae.net.VanillaVAE
+_target_: src.models.vae.net.BetaVAE
 
 kld_weight: 0.00025 # al_img.shape[0]/ self.num_train_images
 
@@ -32,3 +32,8 @@ decoder:
   n_attention_layers: ${model.net.encoder.n_attention_layers}
 
 latent_dims: [3, 8, 8]
+beta: 4
+gamma: 1000.
+max_capacity: 25
+Capacity_max_iter: 1e5
+loss_type: B

@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import torch
 import torch.nn as nn
@@ -18,49 +18,25 @@ class AutoEncoder(nn.Module):
     This consists of the encoder and decoder modules.
     """
 
-    def __init__(self,
-                 img_dims: int,
-                 z_channels: int = 3,
-                 base_channels: int = 64,
-                 block: str = 'Residual',
-                 n_layer_blocks: int = 1,
-                 channel_multipliers: List[int] = [1, 2, 4],
-                 attention: str = 'Attention') -> None:
+    def __init__(
+        self,
+        latent_dims: Tuple[int, int, int],
+        encoder: Encoder,
+        decoder: Decoder,
+    ) -> None:
         """_summary_
 
         Args:
-            img_dims (int): the list of dimension of image.
-            z_channels (int, optional): is the number of channels in the embedding space. Defaults to 3.
-            base_channels (int, optional): is the number of channels in the first convolution layer. Defaults to 64.
-            block (str, optional):  is the block of block in each layers. Defaults to 'Residual'.
-            n_layer_blocks (int, optional): is the number of resnet layers at each resolution. Defaults to 1.
-            channel_multipliers (List[int], optional): are the multiplicative factors for the number of channels in the subsequent blocks. Defaults to [1, 2, 4].
-            attention (str, optional): _description_. Defaults to 'Attention'.
+            latent_dims (List[int, int, int]): _description_
+            encoder (Encoder): _description_
+            decoder (Decoder): _description_
         """
-        super(AutoEncoder, self).__init__()
+        
+        super().__init__()
 
-        self.encoder = Encoder(in_channels=img_dims[0],
-                               base_channels=base_channels,
-                               z_channels=z_channels,
-                               block=block,
-                               n_layer_blocks=n_layer_blocks,
-                               channel_multipliers=channel_multipliers,
-                               attention=attention,
-                               double_z=True)
-
-        self.decoder = Decoder(out_channels=img_dims[0],
-                               base_channels=base_channels,
-                               z_channels=z_channels,
-                               block=block,
-                               n_layer_blocks=n_layer_blocks,
-                               channel_multipliers=channel_multipliers,
-                               attention=attention)
-
-        self.latent_dims = [
-            z_channels,
-            int(img_dims[1] / (1 << (len(channel_multipliers) - 1))),
-            int(img_dims[2] / (1 << (len(channel_multipliers) - 1)))
-        ]
+        self.latent_dims = latent_dims
+        self.encoder = encoder
+        self.decoder = decoder
 
     def encode(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         """
@@ -68,14 +44,8 @@ class AutoEncoder(nn.Module):
 
         img: is the image tensor with shape `[batch_size, img_channels, img_height, img_width]`
         """
-        # Get embeddings with shape `[batch_size, z_channels * 2, z_height, z_width]`
-        mean_var = self.encoder(img)
-        mean, log_var = torch.chunk(mean_var, 2, dim=1)
-
-        std = torch.exp(0.5 * log_var)
-        z = mean + std * torch.randn_like(std)
-
-        return z
+        # Get embeddings with shape `[batch_size, z_channels, z_height, z_width]`
+        return self.encoder(img)
 
     def decode(self, z: Tensor) -> Tensor:
         """
@@ -105,16 +75,27 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="autoencoder.yaml")
     def main(cfg: DictConfig):
-        # print(cfg)
+        cfg["encoder"]["z_channels"] = 3
+        cfg["decoder"]["z_channels"] = 3
+        cfg["decoder"]["base_channels"] = 64
+        cfg["decoder"]["block"] = "Residual"
+        cfg["decoder"]["n_layer_blocks"] = 1
+        cfg["decoder"]["drop_rate"] = 0.
+        cfg["decoder"]["attention"] = "Attention"
+        cfg["decoder"]["channel_multipliers"] = [1, 2, 3]
+        cfg["decoder"]["n_attention_heads"] = None
+        cfg["decoder"]["n_attention_layers"] = None
+        print(cfg)
+
         autoencoder: AutoEncoder = hydra.utils.instantiate(cfg)
         x = torch.randn(2, 3, 32, 32)
 
         z = autoencoder.encode(x)
-        out, _ = autoencoder(x)
+        output, _ = autoencoder(x)
 
         print('***** AutoEncoder *****')
         print('Input:', x.shape)
         print('Encode:', z.shape)
-        print('Output:', out.shape)
+        print('Decode:', output.shape)
 
     main()

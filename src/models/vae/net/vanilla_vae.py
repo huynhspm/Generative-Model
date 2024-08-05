@@ -1,4 +1,4 @@
-from typing import List, Tuple, Dict
+from typing import Tuple, Dict
 
 import torch
 import pyrootutils
@@ -45,68 +45,33 @@ class GaussianDistribution:
         # Sample from the distribution N(mean, std) = mean + std * N(0, 1)
         z = self.mean + self.std * torch.randn_like(self.std)
 
-        # print('-' * 60)
-        # print('mean:', self.mean.min().item(), self.mean.max().item(), '\n',
-        #       'std:', self.std.min().item(), self.std.max().item(), '\n',
-        #       'z:', z.min().item(), z.max().item())
-        # print('-' * 60)
-
         return z, kld_loss
 
 
 class VanillaVAE(BaseVAE):
-    """
-    ## AutoEncoder
 
-    This consists of the encoder and decoder modules.
-    """
-
-    def __init__(self,
-                 img_dims: int,
-                 z_channels: int = 3,
-                 base_channels: int = 64,
-                 block: str = 'Residual',
-                 n_layer_blocks: int = 1,
-                 channel_multipliers: List[int] = [1, 2, 4],
-                 attention: str = 'Attention',
-                 kld_weight: Tuple[int, int] = [0, 1]) -> None:
+    def __init__(
+        self,
+        latent_dims: Tuple[int, int, int],
+        encoder: Encoder,
+        decoder: Decoder,
+        kld_weight: float = 1.0,
+    ) -> None:
         """_summary_
 
         Args:
-            img_dims (int): _description_
-            z_channels (int, optional): _description_. Defaults to 32.
-            base_channels (int, optional): _description_. Defaults to 32.
-            block (str, optional): _description_. Defaults to 'Residual'.
-            n_layer_blocks (int, optional): _description_. Defaults to 1.
-            channel_multipliers (List[int], optional): _description_. Defaults to [1, 2, 4].
-            attention (str, optional): _description_. Defaults to 'Attention'.
-            kld_weight (Tuple[int, int], optional): _description_. Defaults to [0, 1].
+            latent_dims (Tuple[int, int, int]): _description_
+            encoder (Encoder): _description_
+            decoder (Decoder): _description_
+            kld_weight (float, optional): _description_. Defaults to 1.0.
         """
-        super(VanillaVAE, self).__init__()
-        self.kld_weight = kld_weight[0] / kld_weight[1]
+        
+        super().__init__()
 
-        self.encoder = Encoder(in_channels=img_dims[0],
-                               base_channels=base_channels,
-                               z_channels=z_channels,
-                               block=block,
-                               n_layer_blocks=n_layer_blocks,
-                               channel_multipliers=channel_multipliers,
-                               attention=attention,
-                               double_z=True)
-
-        self.decoder = Decoder(out_channels=img_dims[0],
-                               base_channels=base_channels,
-                               z_channels=z_channels,
-                               block=block,
-                               n_layer_blocks=n_layer_blocks,
-                               channel_multipliers=channel_multipliers,
-                               attention=attention)
-
-        self.latent_dims = [
-            z_channels,
-            int(img_dims[1] / (1 << (len(channel_multipliers) - 1))),
-            int(img_dims[2] / (1 << (len(channel_multipliers) - 1)))
-        ]
+        self.latent_dims = latent_dims
+        self.kld_weight = kld_weight
+        self.encoder = encoder
+        self.decoder = decoder
 
     def encode(self, img: Tensor) -> Tuple[Tensor, Tensor]:
         """
@@ -129,9 +94,9 @@ class VanillaVAE(BaseVAE):
         # Decode the image of shape `[batch_size, img_channels, img_height, img_width]`
         return self.decoder(z)
 
-    def forward(self, img: Tensor) -> Tuple[Tensor, Tensor]:
+    def forward(self, img: Tensor) -> Tuple[Tensor, Dict[str, Tensor]]:
         z, kld_loss = self.encode(img)
-        loss = {"kld_loss": kld_loss}
+        loss = {"kld_loss": self.kld_weight * kld_loss}
         return self.decode(z), loss
 
 
@@ -148,21 +113,30 @@ if __name__ == "__main__":
                 config_path=config_path,
                 config_name="vanilla_vae.yaml")
     def main(cfg: DictConfig):
-        cfg.kld_weight = [0, 1]
+        cfg["encoder"]["z_channels"] = 3
+        cfg["decoder"]["z_channels"] = 3
+        cfg["decoder"]["base_channels"] = 64
+        cfg["decoder"]["block"] = "Residual"
+        cfg["decoder"]["n_layer_blocks"] = 1
+        cfg["decoder"]["drop_rate"] = 0.
+        cfg["decoder"]["attention"] = "Attention"
+        cfg["decoder"]["channel_multipliers"] = [1, 2, 3]
+        cfg["decoder"]["n_attention_heads"] = None
+        cfg["decoder"]["n_attention_layers"] = None
+        print(cfg)
 
-        # print(cfg)
         vanilla_vae: VanillaVAE = hydra.utils.instantiate(cfg)
         x = torch.randn(2, 3, 32, 32)
 
         z, kld_loss = vanilla_vae.encode(x)
-        out, kld_loss = vanilla_vae(x)
+        output, kld_loss = vanilla_vae(x)
         sample = vanilla_vae.sample(n_samples=2)
 
         print('***** VanillaVAE *****')
         print('Input:', x.shape)
         print('Encode:', z.shape)
         print('KLD_Loss:', kld_loss)
-        print('Output:', out.shape)
+        print('Decode:', output.shape)
         print('Sample:', sample.shape)
 
     main()

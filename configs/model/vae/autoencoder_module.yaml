@@ -14,7 +14,7 @@ scheduler:
   gamma: 0.95
 
 net:
-  _target_: src.models.vae.net.VQVAE
+  _target_: src.models.vae.net.AutoEncoder
 
   encoder:
     _target_: src.models.components.up_down.Encoder
@@ -46,12 +46,6 @@ net:
     n_attention_layers: ${model.net.encoder.n_attention_layers}
 
   latent_dims: [3, 8, 8]
-
-  vq_layer:
-    _target_: src.models.vae.net.VectorQuantizer
-    num_embeddings: 512
-    embedding_dim: ${model.net.latent_dims[0]}
-    beta: 0.25
 
 criterion: 
   _target_: torch.nn.MSELoss
