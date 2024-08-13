@@ -24,19 +24,28 @@ class Encoder(nn.Module):
                  base_channels: int = 64,
                  block: str = "Residual",
                  n_layer_blocks: int = 1,
+                 drop_rate: float = 0.,
                  channel_multipliers: List[int] = [1, 2, 4],
                  attention: str = "Attention",
+                 n_attention_heads: int | None = None,
+                 n_attention_layers: int | None = None,
                  double_z: bool = False) -> None:
+        """_summary_
+
+        Args:
+            in_channels (int): is the number of channels in the input.
+            z_channels (int, optional): is the number of channels in the embedding space. Defaults to 3.
+            base_channels (int, optional): is the number of channels in the first convolution layer. Defaults to 64.
+            block (str, optional): is the block of block in each layers of encoder. Defaults to "Residual".
+            n_layer_blocks (int, optional): is the number of resnet layers at each resolution. Defaults to 1.
+            drop_rate (float, optional): parameter of dropout layer. Defaults to 0..
+            channel_multipliers (List[int], optional): the multiplicative factors for number of channels for each level. Defaults to [1, 2, 4].
+            attention (str, optional): type of attentions for each level. Defaults to "Attention".
+            n_attention_heads (int, optional): the number of head for multi-head attention. Defaults to None.
+            n_attention_layers (int, optional): the number of layer in each attention. Defaults to None.
+            double_z (bool, optional): _description_. Defaults to False.
         """
-        in_channels: is the number of channels in the input
-        z_channels: is the number of channels in the embedding space
-        base_channels: is the number of channels in the first convolution layer
-        block: is the block of block in each layers of encoder
-        n_layer_blocks: is the number of resnet layers at each resolution
-        channel_multipliers: are the multiplicative factors for the number of channels in the subsequent blocks
-        attention:
-        double_z:
-        """
+
         super().__init__()
 
         # Number of levels downSample
@@ -70,10 +79,9 @@ class Encoder(nn.Module):
 
             for _ in range(n_layer_blocks):
                 blocks.append(
-                    Block(
-                        in_channels=channels,
-                        out_channels=channels_list[i],
-                    ))
+                    Block(in_channels=channels,
+                          out_channels=channels_list[i],
+                          drop_rate=drop_rate))
 
                 channels = channels_list[i]
 
@@ -91,10 +99,12 @@ class Encoder(nn.Module):
 
         # mid block with attention
         self.mid = nn.Sequential(
-            Block(in_channels=channels),
-            Attention(channels=channels) if attention is not None else Block(in_channels=channels),
-            Block(in_channels=channels),
-        )
+            Block(in_channels=channels, drop_rate=drop_rate),
+            Attention(channels=channels, 
+                      n_heads=n_attention_heads,
+                      n_layers=n_attention_layers) if attention is not None \
+                      else Block(in_channels=channels, drop_rate=drop_rate),
+            Block(in_channels=channels, drop_rate=drop_rate))
 
         # output encoder
         self.encoder_output = nn.Sequential(
@@ -104,40 +114,60 @@ class Encoder(nn.Module):
                       out_channels=2 * z_channels if double_z else z_channels,
                       kernel_size=3,
                       stride=1,
-                      padding=1),
-        )
+                      padding=1))
 
     def forward(self, x: Tensor) -> Tensor:
-        """
-        x: is the image tensor with shape `[batch_size, img_channels, img_height, img_width]`
-        """
+        """_summary_
 
+        Args:
+            x (Tensor): is the image tensor with shape `[batch_size, img_channels, img_height, img_width]`
+
+        Returns:
+            Tensor: _description_
+        """
+        
         # input convolution
-        x = self.encoder_input(x)
+        z = self.encoder_input(x)
 
         # Top-level blocks
         for encoder in self.encoder:
             # Blocks
             for block in encoder.blocks:
-                x = block(x)
+                z = block(z)
             # Down-sampling
-            x = encoder.downSample(x)
+            z = encoder.downSample(z)
 
         # mid block with attention
-        x = self.mid(x)
+        z = self.mid(z)
 
         # Map image space to mean-var in z space
-        x = self.encoder_output(x)
+        z = self.encoder_output(z)
 
-        #
-        return x
+        return z
 
 
 if __name__ == "__main__":
-    x = torch.randn(2, 3, 32, 32)
-    encoder = Encoder(in_channels=3, attention=None)
-    out = encoder(x)
+    import hydra
+    from omegaconf import DictConfig
 
-    print('***** Encoder *****')
-    print('Input:', x.shape)
-    print('Output:', out.shape)
+    root = pyrootutils.find_root(search_from=__file__,
+                                 indicator=".project-root")
+    config_path = str(root / "configs" / "model" / "components" / "up_down")
+    print("root: ", root)
+
+    @hydra.main(version_base=None,
+                config_path=config_path,
+                config_name="encoder.yaml")
+    def main(cfg: DictConfig):
+        print(cfg)
+
+        encoder: Encoder = hydra.utils.instantiate(cfg)
+        x = torch.randn(2, 3, 32, 32)
+
+        z = encoder(x)
+
+        print('***** Encoder *****')
+        print('Input:', x.shape)
+        print('Output:', z.shape)
+
+    main()

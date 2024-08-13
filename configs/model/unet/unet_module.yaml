@@ -5,13 +5,32 @@ use_ema: true
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 0.005
+  lr: 0.0001
   weight_decay: 0.0
+
+# optimizer:
+#   _target_: torch.optim.SGD
+#   _partial_: true
+#   lr: 0.0001
+#   weight_decay: 1e-5
+
+# optimizer:
+#   _target_: torch.optim.RMSprop
+#   _partial_: true
+#   lr: 0.0001
+#   weight_decay: 1e-5
 
 scheduler:
   _target_: torch.optim.lr_scheduler.ExponentialLR
   _partial_: true
   gamma: 0.95
+
+# scheduler:
+#   _target_: torch.optim.lr_scheduler.ReduceLROnPlateau
+#   _partial_: true
+#   mode: min
+#   factor: 0.1
+#   patience: 10
 
 net:
   _target_: src.models.unet.net.UNetAttention
@@ -28,16 +47,26 @@ net:
   n_attention_heads: null # the number of attention heads
   n_attention_layers: null # the number of attention layers
 
+# other segmentation-loss in https://smp.readthedocs.io/en/latest/losses.html
 criterion:
-  # Dice Loss for binary-class or multi-label or multi-class
-  _target_: segmentation_models_pytorch.losses.DiceLoss
-  mode: binary
-
   # BCE Loss for binary-class or multi-label
-  # _target_: segmentation_models_pytorch.losses.SoftBCEWithLogitsLoss
-  # pos_weights: 
+  _target_: segmentation_models_pytorch.losses.SoftBCEWithLogitsLoss
+  # smooth_factor: 0.1
 
   # CE Loss for multi-class
   # _target_: segmentation_models_pytorch.losses.SoftCrossEntropyLoss
-  # _target_: torch.nn.CrossEntropyLoss
-  # weights:
+  # smooth_factor: 0.1
+
+  # Dice Loss for binary-class or multi-label or multi-class
+  # _target_: segmentation_models_pytorch.losses.DiceLoss
+  # mode: binary
+  # smooth: 0.1
+
+  # Focal Loss for binary-class or multi-label or multi-class
+  # _target_: segmentation_models_pytorch.losses.FocalLoss
+  # mode: binary
+
+  # IoU Loss for binary-class or multi-label or multi-class
+  # _target_: segmentation_models_pytorch.losses.JaccardLoss
+  # mode: binary
+  # smooth: 0.1

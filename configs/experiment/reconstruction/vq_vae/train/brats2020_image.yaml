@@ -21,6 +21,7 @@ trainer:
   max_epochs: 50
   devices: 1
   check_val_every_n_epoch: 5
+  gradient_clip_val: 1.0
 
 data:
   batch_size: 8

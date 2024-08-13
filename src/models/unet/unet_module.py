@@ -10,11 +10,15 @@ from torchmetrics import MeanMetric
 from torch.optim import Optimizer, lr_scheduler
 from contextlib import contextmanager
 
-from torch.nn import CrossEntropyLoss
-from segmentation_models_pytorch.losses import SoftBCEWithLogitsLoss, DiceLoss
+from segmentation_models_pytorch.losses import (SoftCrossEntropyLoss, 
+                                                SoftBCEWithLogitsLoss, 
+                                                DiceLoss, 
+                                                FocalLoss, 
+                                                JaccardLoss)
 
 pyrootutils.setup_root(__file__, indicator=".project-root", pythonpath=True)
 
+from src.models.unet.net import UNetAttention, UNetPlusPlus
 from src.utils.ema import LitEma
 
 
@@ -45,11 +49,19 @@ class UNetModule(pl.LightningModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # UNet
+        assert isinstance(net, (UNetAttention, UNetPlusPlus)), \
+            NotImplementedError("Only implemented for [UNetAttention, UNetPlusPlus]")
+        
+        # UNet model
         self.net = net
 
-        assert isinstance(criterion, (CrossEntropyLoss, SoftBCEWithLogitsLoss, DiceLoss)), \
-            NotImplementedError(f"only implemented for [CrossEntropyLoss, SoftBCEWithLogitsLoss, DiceLoss]")
+        assert isinstance(criterion, (SoftCrossEntropyLoss, 
+                                    SoftBCEWithLogitsLoss, 
+                                    DiceLoss, 
+                                    FocalLoss,
+                                    JaccardLoss)), \
+            NotImplementedError("Only implemented for [SoftCrossEntropyLoss, SoftBCEWithLogitsLoss, \
+                                DiceLoss, FocalLoss, JaccardLoss]")
         
         # loss function
         self.criterion = criterion
@@ -64,7 +76,7 @@ class UNetModule(pl.LightningModule):
         if self.use_ema:
             self.model_ema = LitEma(self.net)
 
-    def on_train_batch_end(self, *args, **kwargs):
+    def on_train_batch_end(self, *args, **kwargs) -> None:
         self.model_ema(self.net)
 
     @contextmanager
@@ -96,8 +108,13 @@ class UNetModule(pl.LightningModule):
         else:
             logits = self.net(x)
 
-        preds = nn.functional.softmax(logits, dim=1) if isinstance(self.criterion, CrossEntropyLoss) \
-                else nn.functional.sigmoid(logits)
+        if isinstance(self.criterion, SoftCrossEntropyLoss) or \
+            (isinstance(self.criterion, (DiceLoss, FocalLoss, JaccardLoss)) and self.criterion.mode == "multiclass"):
+            # multi-class
+            preds = nn.functional.softmax(logits, dim=1)
+        else:
+            # binary or multi-label
+            preds = nn.functional.sigmoid(logits)
 
         return (preds > threshold).to(dtype) # range [0, 1]
 
@@ -107,7 +124,7 @@ class UNetModule(pl.LightningModule):
         # so it's worth to make sure validation metrics don't store results from these checks
         self.val_loss.reset()
 
-    def rescale(self, image):
+    def rescale(self, image) -> Tensor:
         # convert range of image from [-1, 1] to [0, 1]
         return image * 0.5 + 0.5
 
@@ -128,21 +145,20 @@ class UNetModule(pl.LightningModule):
         return loss
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
-                      batch_idx: int) -> Tensor:
+                    batch_idx: int) -> Tensor:
         loss = self.model_step(batch)
 
         # update and log metrics
         self.train_loss(loss)
 
         self.log("train/loss",
-                 self.train_loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True)
-        # we can return here dict with any tensors
-        # and then read it in some callback or in `training_epoch_end()` below
-        # remember to always return loss from `training_step()` or backpropagation will fail!
-        return {"loss": loss}
+                self.train_loss,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True)
+
+        # return loss or backpropagation will fail
+        return loss
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
@@ -162,10 +178,10 @@ class UNetModule(pl.LightningModule):
         self.val_loss(loss)
 
         self.log("val/loss",
-                 self.val_loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True)
+                self.val_loss,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True)
 
     def on_validation_epoch_end(self) -> None:
         "Lightning hook that is called when a validation epoch ends."
@@ -183,10 +199,10 @@ class UNetModule(pl.LightningModule):
         # update and log metrics
         self.test_loss(loss)
         self.log("test/loss",
-                 self.test_loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True)
+                self.test_loss,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True)
 
     def on_test_epoch_end(self) -> None:
         """Lightning hook that is called when a test epoch ends."""
@@ -230,7 +246,7 @@ if __name__ == "__main__":
     from omegaconf import DictConfig
 
     root = pyrootutils.find_root(search_from=__file__,
-                                 indicator=".project-root")
+                                indicator=".project-root")
     print("root: ", root)
     config_path = str(root / "configs" / "model" / "unet")
 

@@ -20,7 +20,7 @@ encoder:
 decoder:
   _target_: src.models.components.up_down.Decoder
 
-  out_channels: 3
+  out_channels: ${model.net.encoder.in_channels}
   z_channels: ${model.net.latent_dims[0]}
   base_channels: ${model.net.encoder.base_channels}
   block: ${model.net.encoder.block}

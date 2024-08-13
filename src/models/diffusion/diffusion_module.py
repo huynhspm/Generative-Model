@@ -108,8 +108,9 @@ class DiffusionModule(pl.LightningModule):
         self.val_loss.reset()
 
     def model_step(
-            self, batch: Tuple[Tensor,
-                               Tensor]) -> Tensor:
+        self, 
+        batch: Tuple[Tensor, Tensor],
+    ) -> Tensor:
         """Perform a single model step on a batch of data.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target labels.
@@ -135,10 +136,9 @@ class DiffusionModule(pl.LightningModule):
                  on_step=False,
                  on_epoch=True,
                  prog_bar=True)
-        # we can return here dict with any tensors
-        # and then read it in some callback or in `training_epoch_end()` below
-        # remember to always return loss from `training_step()` or backpropagation will fail!
-        return {"loss": loss}
+
+        # return loss or backpropagation will fail
+        return loss
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."

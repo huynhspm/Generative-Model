@@ -18,21 +18,29 @@ class Decoder(nn.Module):
     """
 
     def __init__(self,
-                 out_channels: int,
-                 z_channels: int = 3,
-                 base_channels: int = 64,
-                 block: str = "Residual",
-                 n_layer_blocks: int = 1,
-                 channel_multipliers: List[int] = [1, 2, 4],
-                 attention: str = "Attention") -> None:
-        """
-        out_channels: is the number of channels in the input
-        z_channels: is the number of channels in the embedding space
-        base_channels: is the number of channels in the final convolution layer
-        block: is the block in each layers of decoder
-        n_layer_blocks: is the number of resnet layers at each resolution
-        channel_multipliers: are the multiplicative factors for the number of channels in the subsequent blocks
-        attention: 
+                out_channels: int,
+                z_channels: int = 3,
+                base_channels: int = 64,
+                block: str = "Residual",
+                n_layer_blocks: int = 1,
+                drop_rate: float = 0.,
+                channel_multipliers: List[int] = [1, 2, 4],
+                attention: str = "Attention",
+                n_attention_heads: int | None = None,
+                n_attention_layers: int | None = None) -> None:
+        """_summary_
+
+        Args:
+            out_channels (int): is the number of channels in the output.
+            z_channels (int, optional): is the number of channels in the embedding space. Defaults to 3.
+            base_channels (int, optional): is the number of channels in the first convolution layer. Defaults to 64.
+            block (str, optional): _description_. Defaults to "Residual".
+            n_layer_blocks (int, optional): _description_. Defaults to 1.
+            drop_rate (float, optional): parameter of dropout layer. Defaults to 0..
+            channel_multipliers (List[int], optional): _description_. Defaults to [1, 2, 4].
+            attention (str, optional): _description_. Defaults to "Attention".
+            n_attention_heads (int | None, optional): _description_. Defaults to None.
+            n_attention_layers (int | None, optional): _description_. Defaults to None.
         """
         super().__init__()
 
@@ -54,17 +62,19 @@ class Decoder(nn.Module):
 
         # map z space to image space
         self.decoder_input = nn.Conv2d(in_channels=z_channels,
-                                 out_channels=channels,
-                                 kernel_size=3,
-                                 stride=1,
-                                 padding=1)
+                                    out_channels=channels,
+                                    kernel_size=3,
+                                    stride=1,
+                                    padding=1)
 
         # mid block with attention
         self.mid = nn.Sequential(
             Block(channels, channels),
-            Attention(channels=channels) if attention is not None else Block(in_channels=channels),
-            Block(channels, channels),
-        )
+            Attention(channels=channels, 
+                    n_heads=n_attention_heads,
+                    n_layers=n_attention_layers) if attention is not None \
+                    else Block(in_channels=channels, drop_rate=drop_rate),
+            Block(channels, channels))
 
         # List of top-level blocks
         self.decoder = nn.ModuleList()
@@ -76,10 +86,9 @@ class Decoder(nn.Module):
 
             for _ in range(n_layer_blocks + 1):
                 blocks.append(
-                    Block(
-                        in_channels=channels,
-                        out_channels=channels_list[i],
-                    ))
+                    Block(in_channels=channels,
+                          out_channels=channels_list[i],
+                          drop_rate=drop_rate))
 
                 channels = channels_list[i]
                 
@@ -102,8 +111,7 @@ class Decoder(nn.Module):
             nn.Conv2d(in_channels=channels,
                       out_channels=out_channels,
                       kernel_size=3,
-                      padding=1),
-        )
+                      padding=1))
 
     def forward(self, z: Tensor) -> Tensor:
         """
@@ -127,14 +135,31 @@ class Decoder(nn.Module):
         # output convolution
         x = self.decoder_output(x)
 
-        #
         return x
-    
-if __name__ == "__main__":
-    x = torch.randn(2, 3, 8, 8)
-    decoder = Decoder(out_channels=3, attention=None)
-    out = decoder(x)
 
-    print('***** Decoder *****')
-    print('Input:', x.shape)
-    print('Output:', out.shape)
+
+if __name__ == "__main__":
+    import hydra
+    from omegaconf import DictConfig
+
+    root = pyrootutils.find_root(search_from=__file__,
+                                 indicator=".project-root")
+    config_path = str(root / "configs" / "model" / "components" / "up_down")
+    print("root: ", root)
+
+    @hydra.main(version_base=None,
+                config_path=config_path,
+                config_name="decoder.yaml")
+    def main(cfg: DictConfig):
+        print(cfg)
+
+        decoder: Decoder = hydra.utils.instantiate(cfg)
+        z = torch.randn(2, 3, 8, 8)
+
+        x = decoder(z)
+
+        print('***** Decoder *****')
+        print('Input:', z.shape)
+        print('Output:', x.shape)
+
+    main()

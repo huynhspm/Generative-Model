@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=reconstruction/vanilla_vae/celeba
+# python src/train.py experiment=reconstruction/vq_vae/train/test
 
 defaults:
-  - override /data: celeba.yaml
-  - override /model: vae/vanilla_vae_module.yaml
+  - override /data: isic2018.yaml
+  - override /model: vae/vq_vae_module.yaml
   - override /callbacks: vae.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -15,28 +15,32 @@ defaults:
 
 seed: 12345
 
-task_name: "train_reconstruction_vae"
+task_name: "reconstruction_vae/train"
 
 trainer:
-  max_epochs: 100
+  max_epochs: 10
   devices: 1
   check_val_every_n_epoch: 5
+  gradient_clip_val: 1.0
 
 data:
-  batch_size: 8
-  num_workers: 20
+  batch_size: 4
+  num_workers: 10
+  image_size: 64
+  train_val_test_split: [20, 20, 20]
 
 model:
   net:
-    # encode to 3x64x64
-    z_channels: 3
-    base_channels: 64
-    n_layer_blocks: 2
+    # encode 3x256x256 to 3x64x64
+    latent_dims: [3, 8, 8]
+    encoder:
+      in_channels: 1
+      base_channels: 64
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "vae"
+    project: "reconstruction_vae"
     tags: ${tags}
     group: ${data.dataset_name}
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)

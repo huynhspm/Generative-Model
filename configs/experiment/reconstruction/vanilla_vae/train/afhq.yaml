@@ -1,10 +1,10 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=reconstruction/vanilla_vae/cifar10
+# python train.py experiment=reconstruction/vanilla_vae/train/afhq
 
 defaults:
-  - override /data: cifar10.yaml
+  - override /data: afhq.yaml
   - override /model: vae/vanilla_vae_module.yaml
   - override /callbacks: vae.yaml
   - override /trainer: ddp.yaml
@@ -15,31 +15,36 @@ defaults:
 
 seed: 12345
 
-task_name: "train_reconstruction_vae"
+task_name: "reconstruction_vae/train"
 
 trainer:
   max_epochs: 100
   devices: 1
   check_val_every_n_epoch: 5
+  gradient_clip_val: 1.0
 
 data:
-  batch_size: 128
+  batch_size: 8
   num_workers: 20
 
 model:
   net:
-    # encode to 16x16x16
-    z_channels: 16
+    # encode to 3x64x64
+    z_channels: 3
     base_channels: 64
-    channel_multipliers: [1, 2]
+    channel_multipliers: [1, 2, 4, 4]
     n_layer_blocks: 2
-    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
-
-ckpt_path: null # simply provide checkpoint path to resume training
 
 logger:
   wandb:
     name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "vae"
+    project: "reconstruction_vae"
     tags: ${tags}
     group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
+
+callbacks:
+  gen_sample:
+    grid_shape: [5, 5]

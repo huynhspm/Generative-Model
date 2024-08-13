@@ -56,7 +56,7 @@ callbacks:
     n_ensemble: 5
   metrics:
     n_ensemble: 5
-    metrics:
+    metric_list:
       - binary-dice
       - binary-iou
       - image_variance

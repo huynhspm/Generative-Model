@@ -143,7 +143,7 @@ class VAEModule(pl.LightningModule):
         return losses
 
     def training_step(self, batch: Tuple[Tensor, Tensor],
-                      batch_idx: int) -> Tensor:
+                    batch_idx: int) -> Tensor:
         """Perform a single training step on a batch of data from the training set.
 
         :param batch: A batch of data (a tuple) containing the input tensor of images and target
@@ -158,22 +158,20 @@ class VAEModule(pl.LightningModule):
         self.train_loss(loss)
 
         self.log("train/loss",
-                 self.train_loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True)
+                self.train_loss,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True)
 
-        for key, loss in losses.items():
+        for key in losses.keys():
             self.log(f"train/{key}_loss",
-                    loss.detach(),
+                    losses[key].detach(),
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True)
             
-        # we can return here dict with any tensors
-        # and then read it in some callback or in `training_epoch_end()` below
-        # remember to always return loss from `training_step()` or backpropagation will fail!
-        return {"loss": loss}
+        # return loss or backpropagation will fail
+        return loss
 
     def on_train_epoch_end(self) -> None:
         "Lightning hook that is called when a training epoch ends."
@@ -194,14 +192,14 @@ class VAEModule(pl.LightningModule):
         self.val_loss(loss)
 
         self.log("val/loss",
-                 self.val_loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True)
+                self.val_loss,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True)
 
-        for key, loss in losses.items():
+        for key in losses.keys():
             self.log(f"val/{key}_loss",
-                    loss.detach(),
+                    losses[key].detach(),
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True)
@@ -224,14 +222,14 @@ class VAEModule(pl.LightningModule):
         self.test_loss(loss)
 
         self.log("test/loss",
-                 self.test_loss,
-                 on_step=False,
-                 on_epoch=True,
-                 prog_bar=True)
+                self.test_loss,
+                on_step=False,
+                on_epoch=True,
+                prog_bar=True)
 
-        for key, loss in losses.items():
+        for key in losses.keys():
             self.log(f"test/{key}_loss",
-                    loss.detach(),
+                    losses[key].detach(),
                     on_step=False,
                     on_epoch=True,
                     sync_dist=True)
@@ -278,7 +276,7 @@ if __name__ == "__main__":
     from omegaconf import DictConfig
 
     root = pyrootutils.find_root(search_from=__file__,
-                                 indicator=".project-root")
+                                indicator=".project-root")
     print("root: ", root)
     config_path = str(root / "configs" / "model" / "vae")
 

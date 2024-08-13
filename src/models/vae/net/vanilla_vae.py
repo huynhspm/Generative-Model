@@ -114,6 +114,7 @@ if __name__ == "__main__":
                 config_name="vanilla_vae.yaml")
     def main(cfg: DictConfig):
         cfg["encoder"]["z_channels"] = 3
+        cfg["decoder"]["out_channels"] = 3
         cfg["decoder"]["z_channels"] = 3
         cfg["decoder"]["base_channels"] = 64
         cfg["decoder"]["block"] = "Residual"
