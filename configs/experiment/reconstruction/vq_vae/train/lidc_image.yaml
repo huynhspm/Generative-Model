@@ -30,13 +30,10 @@ data:
 
 model:
   net:
-    # encode 1x128x128 to 1x32x32
-    img_dims:
-      - 1
-      - ${data.image_size}
-      - ${data.image_size}
-    z_channels: 1
-    base_channels: 64
+    encoder:
+      in_channels: 1
+      base_channels: 64
+    latent_dims: [1, 32, 32]
 
 logger:
   wandb:

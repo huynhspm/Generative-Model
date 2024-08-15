@@ -25,15 +25,15 @@ trainer:
 
 data:
   batch_size: 8
-  num_workers: 20
+  num_workers: 10
 
 model:
   net:
-    # encode to 3x64x64
-    z_channels: 3
-    base_channels: 64
-    channel_multipliers: [1, 2, 4, 4]
-    n_layer_blocks: 2
+    encoder:
+      base_channels: 64
+      channel_multipliers: [1, 2, 4, 4]
+      n_layer_blocks: 2
+    latent_dims: [3, 64, 64]
 
 logger:
   wandb:

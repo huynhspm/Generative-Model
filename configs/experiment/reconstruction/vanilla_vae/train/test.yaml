@@ -30,14 +30,11 @@ data:
 
 model:
   net:
-    # encode to 16x16x16
-    z_channels: 16
-    base_channels: 64
-    channel_multipliers: [1, 2]
-    n_layer_blocks: 2
-    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
-
-ckpt_path: null # simply provide checkpoint path to resume training
+    encoder:
+      base_channels: 64
+      channel_multipliers: [1, 2]
+      n_layer_blocks: 2
+    latent_dims: [16, 16, 16]
 
 logger:
   wandb:
@@ -45,3 +42,7 @@ logger:
     project: "reconstruction_vae"
     tags: ${tags}
     group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
+

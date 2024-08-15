@@ -30,9 +30,10 @@ data:
 
 model:
   net:
-    # encode 3x256x256 to 3x64x64
-    z_channels: 3
     base_channels: 64
+    encoder:
+      base_channels: 64
+    latent_dims: [3, 64, 64]
 
 logger:
   wandb:
