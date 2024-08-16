@@ -315,10 +315,12 @@ class Metrics(Callback):
 
         if "fid" in self.metric_list or "is" in self.metric_list:
 
+            fakes, reals = preds, targets
+
             if preds.shape[1] == 1:
                 # gray to rgb image
-                fakes = torch.cat([preds, preds, preds], dim=1)
-                reals = torch.cat([targets, targets, targets], dim=1)
+                fakes = torch.cat([fakes, fakes, fakes], dim=1)
+                reals = torch.cat([reals, reals, reals], dim=1)
 
             reals = torch.nn.functional.interpolate(reals,
                                                     size=(299, 299),
@@ -432,11 +434,13 @@ class Metrics(Callback):
                         metric_attribute="test_iou")
 
         if "fid" in self.metric_list or "is" in self.metric_list:
+            
+            fakes, reals = preds, targets
 
             if preds.shape[1] == 1:
                 # gray to rgb image
-                fakes = torch.cat([preds, preds, preds], dim=1)
-                reals = torch.cat([targets, targets, targets], dim=1)
+                fakes = torch.cat([fakes, fakes, fakes], dim=1)
+                reals = torch.cat([reals, reals, reals], dim=1)
 
             reals = torch.nn.functional.interpolate(reals,
                                                     size=(299, 299),

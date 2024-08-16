@@ -3,7 +3,7 @@ from typing import List, Optional, Tuple
 import hydra
 import pyrootutils
 import pytorch_lightning as pl
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import Callback, LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import Logger
 
@@ -99,6 +99,7 @@ def train(cfg: DictConfig) -> Tuple[dict, dict]:
 
     return metric_dict, object_dict
 
+OmegaConf.register_new_resolver("multiply", lambda x, y: x * y)
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="train.yaml")
 def main(cfg: DictConfig) -> Optional[float]:

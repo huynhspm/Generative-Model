@@ -132,14 +132,14 @@ if __name__ == "__main__":
         save_image(rescale(cond), fp="cond.jpg")
     
     ensemble = samples.mean(dim=1) > 0.5
-    save_image(ensemble.to(torch.float64), fp="ensemble.jpg")
+    save_image(ensemble.to(torch.float32), fp="ensemble.jpg")
     
     samples = rescale(samples) > 0.5
 
     for i in range(samples.shape[1]):
-        save_image(samples[:, i, ...].to(torch.float64), fp=f"{i}.jpg")
+        save_image(samples[:, i, ...].to(torch.float32), fp=f"{i}.jpg")
     
-    variance = samples.to(torch.float64).var(dim = 1)
+    variance = samples.to(torch.float32).var(dim = 1)
     
     print(variance[0][0].unique())
     sns.heatmap(variance[0][0].cpu()).collections[0].colorbar.ax.tick_params(labelsize=20)
