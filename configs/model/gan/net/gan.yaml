@@ -1,0 +1,15 @@
+_target_: src.models.gan.net.GAN
+
+gen:
+  _target_: src.models.gan.net.cgan.Generator
+  latent_dim: 100
+  img_dims: [1, 32, 32]
+  d_cond_label: null
+
+disc:
+  _target_: src.models.gan.net.cgan.Discriminator
+  img_dims: [1, 32, 32]
+  d_cond_label: null
+
+latent_dim: 100
+

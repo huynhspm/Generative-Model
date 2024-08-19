@@ -1,0 +1,17 @@
+_target_: src.models.gan.net.CGAN
+
+gen:
+  _target_: src.models.gan.net.cgan.Generator
+  latent_dim: 100
+  img_dims: [1, 32, 32]
+  d_cond_label: 10
+
+disc:
+  _target_: src.models.gan.net.cgan.Discriminator
+  img_dims: [1, 32, 32]
+  d_cond_label: 10
+
+label_embedder:
+  _target_: src.models.components.embeds.LabelEmbedder
+  n_classes: 10
+  d_embed: 10

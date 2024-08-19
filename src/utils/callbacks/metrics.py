@@ -11,7 +11,7 @@ from torchmetrics.image import (StructuralSimilarityIndexMeasure,
 
 from torchmetrics import Dice, JaccardIndex, MeanMetric
 
-from src.models.gan import GANModule, ConditionGANModule
+from src.models.gan import GANModule, CGANModule
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
 from src.models.unet import UNetModule
@@ -485,20 +485,20 @@ class Metrics(Callback):
         elif isinstance(pl_module, DiffusionModule):
             fakes = []
             for _ in range(self.n_ensemble):
-                cond=batch[1].copy() if isinstance(pl_module, ConditionDiffusionModule) else None
+                conds=batch[1].copy() if isinstance(pl_module, ConditionDiffusionModule) else None
                 samples = pl_module.predict(num_sample=batch[0].shape[0],
                                             device=pl_module.device,
-                                            cond=cond) #  range (-1, 1)
+                                            cond=conds) #  range (-1, 1)
                 fakes.append(samples[-1])  # [b, c, w, h]
             
             fakes = torch.stack(fakes, dim=1)  # (b, n, c, w, h)
             preds = self.rescale(fakes) # range [0, 1]
 
         elif isinstance(pl_module, GANModule):
-            cond=batch[1] if isinstance(pl_module, ConditionGANModule) else None
-            samples = pl_module.predict(num_sample=batch[0].shape[0],
-                                        device=pl_module.device,
-                                        cond=cond) # range [-1, 1]
+            conds=batch[1] if isinstance(pl_module, CGANModule) else None
+            samples = pl_module.predict(cond=conds,
+                                        num_sample=batch[0].shape[0],
+                                        device=pl_module.device) # range [-1, 1]
             preds = self.rescale(samples) # range [0, 1]
 
         else:

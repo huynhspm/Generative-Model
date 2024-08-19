@@ -1,0 +1,36 @@
+_target_: src.models.gan.CGANModule
+
+use_ema: true
+
+optimizer_gen:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 1e-4
+  betas: [0.5, 0.9999]
+
+optimizer_disc:
+  _target_: torch.optim.Adam
+  _partial_: true
+  lr: 1e-4
+  betas: [0.5, 0.9999]
+
+net:
+  _target_: src.models.gan.net.CGAN
+
+  gen:
+    _target_: src.models.gan.net.cgan.Generator
+    latent_dim: ${model.net.latent_dim}
+    img_dims: [1, 32, 32]
+    d_cond_label: ${model.net.label_embedder.d_embed}
+
+  disc:
+    _target_: src.models.gan.net.cgan.Discriminator
+    img_dims: ${model.net.disc.img_dims}
+    d_cond_label: ${model.net.label_embedder.d_embed}
+
+  label_embedder:
+    _target_: src.models.components.embeds.LabelEmbedder
+    n_classes: 10
+    d_embed: 10
+
+  latent_dim: 100

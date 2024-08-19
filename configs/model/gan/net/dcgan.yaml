@@ -1,0 +1,14 @@
+_target_: src.models.gan.net.GAN
+
+gen:
+  _target_: src.models.gan.net.dcgan.Generator
+  latent_dim: 100
+  img_channels: 1
+  img_size: 32
+
+disc:
+  _target_: src.models.gan.net.dcgan.Discriminator
+  img_channels: 1
+  img_size: 32
+
+latent_dim: 100

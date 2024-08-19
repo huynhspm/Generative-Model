@@ -8,7 +8,7 @@ from pytorch_lightning import LightningModule, Trainer
 from torchvision.utils import make_grid
 from pytorch_lightning.callbacks import Callback
 
-from src.models.gan import GANModule, ConditionGANModule
+from src.models.gan import GANModule, CGANModule
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
 from src.models.unet import UNetModule
@@ -133,13 +133,12 @@ class GenSample(Callback):
             reals = batch[0][:n_samples]
 
             conds = None
-            if isinstance(pl_module, ConditionGANModule):
+            if isinstance(pl_module, CGANModule):
                 conds = {key: value[:n_samples] for key, value in batch[1].items()}
 
-            fakes = pl_module.predict(num_sample=n_samples, 
-                                      device=pl_module.device, 
-                                      cond=conds if isinstance(
-                                      pl_module, ConditionGANModule) else None) # range [-1, 1]
+            fakes = pl_module.predict(cond=conds,
+                                    num_sample=n_samples, 
+                                    device=pl_module.device) # range [-1, 1]
 
             self.log_sample([self.rescale(fakes), self.rescale(reals)],
                             pl_module=pl_module,

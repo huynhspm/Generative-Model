@@ -1,0 +1,40 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=generation/cgan/train/fashion
+
+defaults:
+  - override /data: fashion.yaml
+  - override /model: gan/cgan_module.yaml
+  - override /callbacks: gan.yaml
+  - override /trainer: ddp.yaml
+  - override /logger: wandb.yaml
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+seed: 12345
+
+task_name: "generation_gan/train"
+
+trainer:
+  max_epochs: 500
+  devices: 1
+  check_val_every_n_epoch: 5
+  strategy:
+    _target_: pytorch_lightning.strategies.ddp.DDPStrategy
+    find_unused_parameters: True
+
+data:
+  batch_size: 256 # GPU 16G
+  num_workers: 10
+
+logger:
+  wandb:
+    name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    project: "generation_gan"
+    tags: ${tags}
+    group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training
