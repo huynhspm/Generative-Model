@@ -2,7 +2,7 @@ from typing import List, Tuple
 
 import hydra
 import pyrootutils
-from omegaconf import DictConfig
+from omegaconf import DictConfig, OmegaConf
 from pytorch_lightning import LightningDataModule, LightningModule, Trainer
 from pytorch_lightning.loggers import Logger
 
@@ -82,6 +82,7 @@ def evaluate(cfg: DictConfig) -> Tuple[dict, dict]:
 
     return metric_dict, object_dict
 
+OmegaConf.register_new_resolver("multiply", lambda x, y: x * y)
 
 @hydra.main(version_base="1.3", config_path="../configs", config_name="eval.yaml")
 def main(cfg: DictConfig) -> None:

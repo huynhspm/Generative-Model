@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/cgan/train/fashion
+# python eval.py experiment=generation/dcgan/eval/mnist
 
 defaults:
-  - override /data: fashion.yaml
-  - override /model: gan/cgan_module.yaml
+  - override /data: mnist.yaml
+  - override /model: gan/dcgan_module.yaml
   - override /callbacks: generation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -15,19 +15,18 @@ defaults:
 
 seed: 12345
 
-task_name: "generation_gan/train"
+task_name: "generation_gan/eval"
 
 trainer:
-  max_epochs: 500
   devices: 1
-  check_val_every_n_epoch: 5
   strategy:
     _target_: pytorch_lightning.strategies.ddp.DDPStrategy
     find_unused_parameters: True
 
 data:
-  batch_size: 256 # GPU 16G
+  batch_size: 1024 # GPU 16G
   num_workers: 10
+  train_val_test_split: [10_000, 10_000, 50_000] # test with 50.000 samples
 
 logger:
   wandb:

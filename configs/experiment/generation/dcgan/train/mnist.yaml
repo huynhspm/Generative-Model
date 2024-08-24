@@ -6,7 +6,7 @@
 defaults:
   - override /data: mnist.yaml
   - override /model: gan/dcgan_module.yaml
-  - override /callbacks: gan.yaml
+  - override /callbacks: generation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
@@ -18,7 +18,7 @@ seed: 12345
 task_name: "generation_gan/train"
 
 trainer:
-  max_epochs: 500
+  max_epochs: 200
   devices: 1
   check_val_every_n_epoch: 5
   strategy:

@@ -6,7 +6,7 @@
 defaults:
   - override /data: mnist.yaml
   - override /model: gan/cgan_module.yaml
-  - override /callbacks: gan.yaml
+  - override /callbacks: generation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 

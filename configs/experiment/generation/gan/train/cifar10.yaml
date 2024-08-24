@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/cgan/train/fashion
+# python train.py experiment=generation/gan/train/cifar10
 
 defaults:
-  - override /data: fashion.yaml
-  - override /model: gan/cgan_module.yaml
+  - override /data: cifar10.yaml
+  - override /model: gan/gan_module.yaml
   - override /callbacks: generation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -18,7 +18,7 @@ seed: 12345
 task_name: "generation_gan/train"
 
 trainer:
-  max_epochs: 500
+  max_epochs: 1000
   devices: 1
   check_val_every_n_epoch: 5
   strategy:
@@ -28,6 +28,11 @@ trainer:
 data:
   batch_size: 256 # GPU 16G
   num_workers: 10
+
+model:
+  net:
+    gen:
+      img_dims: [3, 32, 32]
 
 logger:
   wandb:

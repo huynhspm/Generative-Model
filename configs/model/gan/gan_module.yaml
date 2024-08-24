@@ -5,13 +5,13 @@ use_ema: true
 optimizer_gen:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 1e-4
+  lr: 2e-4
   betas: [0.5, 0.9999]
 
 optimizer_disc:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 1e-4
+  lr: 2e-4
   betas: [0.5, 0.9999]
 
 net:
