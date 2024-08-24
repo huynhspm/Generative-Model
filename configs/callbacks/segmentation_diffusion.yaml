@@ -1,0 +1,14 @@
+# rename diffusion__generation
+defaults:
+  - generation.yaml
+
+metrics:
+  metric_list:
+    - binary-dice
+    - binary-iou
+    - image_variance
+    - boundary_variance
+  n_ensemble: 5
+
+gen_sample:
+  n_ensemble: 5

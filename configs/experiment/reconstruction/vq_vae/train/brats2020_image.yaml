@@ -6,7 +6,7 @@
 defaults:
   - override /data: brats2020.yaml
   - override /model: vae/vq_vae_module.yaml
-  - override /callbacks: vae.yaml
+  - override /callbacks: reconstruction.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 

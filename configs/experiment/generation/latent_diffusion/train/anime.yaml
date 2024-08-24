@@ -6,7 +6,7 @@
 defaults:
   - override /data: anime.yaml
   - override /model: diffusion/latent_diffusion_module.yaml
-  - override /callbacks: diffusion.yaml
+  - override /callbacks: genration_diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 

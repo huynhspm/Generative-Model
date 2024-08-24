@@ -21,7 +21,3 @@ model_summary:
 metrics:
   metric_list:
     - fid
-  n_ensemble: 1
-
-gen_sample:
-  n_ensemble: 1

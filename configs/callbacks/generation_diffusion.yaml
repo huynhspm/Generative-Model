@@ -1,0 +1,8 @@
+defaults:
+  - generation.yaml
+
+metrics:
+  n_ensemble: 1
+
+gen_sample:
+  n_ensemble: 1

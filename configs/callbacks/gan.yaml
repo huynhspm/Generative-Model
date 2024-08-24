@@ -1,5 +1,0 @@
-defaults:
-  - diffusion.yaml
-
-model_checkpoint:
-    monitor: "val/fid"

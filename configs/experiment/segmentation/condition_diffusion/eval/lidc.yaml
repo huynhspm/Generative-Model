@@ -6,7 +6,7 @@
 defaults:
   - override /data: lidc.yaml
   - override /model: diffusion/condition_diffusion_module.yaml
-  - override /callbacks: segmentation.yaml
+  - override /callbacks: segmentation_diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 

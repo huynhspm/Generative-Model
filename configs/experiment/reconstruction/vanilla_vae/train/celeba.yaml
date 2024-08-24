@@ -6,7 +6,7 @@
 defaults:
   - override /data: celeba.yaml
   - override /model: vae/vanilla_vae_module.yaml
-  - override /callbacks: vae.yaml
+  - override /callbacks: reconstruction.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
