@@ -1,0 +1,38 @@
+# @package _global_
+
+# to execute this experiment run:
+# python train.py experiment=generation/flow/train/test
+
+defaults:
+  - override /data: mnist.yaml
+  - override /model: flow/nf_module.yaml
+  - override /callbacks: generation.yaml
+  - override /trainer: ddp.yaml
+  - override /logger: wandb.yaml
+
+# all parameters below will be merged with parameters from default configurations set above
+# this allows you to overwrite only specified parameters
+
+seed: 12345
+
+task_name: "generation_flow/train"
+
+trainer:
+  max_epochs: 10
+  devices: 1
+  check_val_every_n_epoch: 5
+
+data:
+  batch_size: 8 # GPU 16G
+  num_workers: 10
+  train_val_test_split: [20, 20, 20]
+
+logger:
+  wandb:
+    name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
+    project: "generation_flow"
+    tags: ${tags}
+    group: ${data.dataset_name}
+    id: null # pass correct id to resume experiment! (if ckpt_path is not null)
+
+ckpt_path: null # simply provide checkpoint path to resume training

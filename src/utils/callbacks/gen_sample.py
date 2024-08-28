@@ -12,6 +12,7 @@ from src.models.gan import GANModule, CGANModule
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
 from src.models.unet import UNetModule
+from src.models.flow import NFModule
 
 
 class GenSample(Callback):
@@ -138,6 +139,17 @@ class GenSample(Callback):
 
             fakes = pl_module.predict(cond=conds,
                                     num_sample=n_samples, 
+                                    device=pl_module.device) # range [-1, 1]
+
+            self.log_sample([self.rescale(fakes), self.rescale(reals)],
+                            pl_module=pl_module,
+                            nrow=self.grid_shape[0],
+                            mode=mode,
+                            caption=['fake', 'real'])
+
+        elif isinstance(pl_module, NFModule):
+            reals = batch[0][:n_samples]
+            fakes = pl_module.predict(num_sample=n_samples,
                                     device=pl_module.device) # range [-1, 1]
 
             self.log_sample([self.rescale(fakes), self.rescale(reals)],

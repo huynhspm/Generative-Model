@@ -15,6 +15,7 @@ from src.models.gan import GANModule, CGANModule
 from src.models.diffusion import DiffusionModule, ConditionDiffusionModule
 from src.models.vae import VAEModule
 from src.models.unet import UNetModule
+from src.models.flow import NFModule
 
 
 class Metrics(Callback):
@@ -58,7 +59,6 @@ class Metrics(Callback):
 
             # Check: GPU if use train,val,test. save memory
             elif metric == "fid":
-                self.train_fid = FrechetInceptionDistance(normalize=True)
                 self.val_fid = FrechetInceptionDistance(normalize=True)
                 self.test_fid = FrechetInceptionDistance(normalize=True)
 
@@ -84,9 +84,7 @@ class Metrics(Callback):
         self.std = std
         self.n_ensemble = n_ensemble
 
-    def on_fit_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        device = pl_module.device
-
+    def metrics2device(self, device):
         if "binary-dice" in self.metric_list:
             self.train_dice.to(device)
             self.val_dice.to(device)
@@ -125,11 +123,7 @@ class Metrics(Callback):
             self.val_is.to(device)
             self.test_is.to(device)
 
-    def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
-        """Lightning hook that is called when training begins."""
-        # by default lightning executes validation step sanity checks before training starts,
-        # so it's worth to make sure validation metrics don't store results from these checks
-
+    def reset_metrics(self):
         if "binary-dice" in self.metric_list:
             self.val_dice.reset()
 
@@ -147,6 +141,19 @@ class Metrics(Callback):
 
         if "boundary_variance" in self.metric_list:
             self.val_boundary_variance.reset()
+
+        if "fid" in self.metric_list:
+            self.val_fid.reset()
+
+        if "is" in self.metric_list:
+            self.val_is.reset()
+
+    def on_train_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        """Lightning hook that is called when training begins."""
+        # by default lightning executes validation step sanity checks before training starts,
+        # so it's worth to make sure validation metrics don't store results from these checks
+        self.reset_metrics()
+        self.metrics2device(pl_module.device)
 
     def on_train_batch_end(self, trainer: Trainer, pl_module: LightningModule,
                         outputs: STEP_OUTPUT, batch: Any,
@@ -229,6 +236,9 @@ class Metrics(Callback):
                         prog_bar=False,
                         sync_dist=True,
                         metric_attribute="train_iou")
+
+    def on_validation_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        self.metrics2device(pl_module.device)
 
     def on_validation_batch_end(self, trainer: Trainer,
                                 pl_module: LightningModule,
@@ -350,6 +360,9 @@ class Metrics(Callback):
             score, std = self.val_is.compute()
             pl_module.log("val/is", score, metric_attribute="val_is")
             self.val_is.reset()
+
+    def on_test_start(self, trainer: Trainer, pl_module: LightningModule) -> None:
+        self.metrics2device(pl_module.device)
 
     def on_test_batch_end(self, trainer: Trainer, pl_module: LightningModule,
                         outputs: STEP_OUTPUT | None, batch: Any,
@@ -500,6 +513,12 @@ class Metrics(Callback):
                                         num_sample=batch[0].shape[0],
                                         device=pl_module.device) # range [-1, 1]
             preds = self.rescale(samples) # range [0, 1]
+
+        elif isinstance(pl_module, NFModule):
+            fakes = pl_module.predict(num_sample=batch[0].shape[0],
+                                    device=pl_module.device) # range [-1, 1]
+
+            preds = self.rescale(fakes) # range [0, 1]
 
         else:
             raise NotImplementedError("This module is not implemented")
