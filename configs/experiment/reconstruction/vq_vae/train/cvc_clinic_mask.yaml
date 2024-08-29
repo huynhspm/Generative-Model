@@ -49,14 +49,8 @@ callbacks:
   gen_sample:
     grid_shape: [5, 5]
   metrics:
-    dice:
-      _target_: torchmetrics.Dice
-
-      average: micro
-      ignore_index: 0
-    iou:
-      _target_: torchmetrics.JaccardIndex
-
-      average: micro
-      task: binary
-      # ignore_index: 0
+    metric_list:
+      - ssim
+      - psnr
+      - binary-dice
+      - binary-iou
