@@ -6,7 +6,7 @@
 defaults:
   - override /data: fashion.yaml
   - override /model: diffusion/diffusion_module.yaml
-  - override /callbacks: genration_diffusion.yaml
+  - override /callbacks: generation_diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 

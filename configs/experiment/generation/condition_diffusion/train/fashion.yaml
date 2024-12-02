@@ -6,7 +6,7 @@
 defaults:
   - override /data: fashion.yaml
   - override /model: diffusion/condition_diffusion_module.yaml
-  - override /callbacks: genration_diffusion.yaml
+  - override /callbacks: generation_diffusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
@@ -39,7 +39,7 @@ model:
     label_embedder:
       _target_: src.models.components.embeds.LabelEmbedder
       n_classes: ${data.n_classes}
-      d_embed: ${multiply:${model.net.denoise_net.channels},${model.net.denoise_net.channel_multipliers[-1]}}
+      d_embed: ${multiply:${model.net.denoise_net.base_channels},${model.net.denoise_net.channel_multipliers[-1]}}
 
 logger:
   wandb:

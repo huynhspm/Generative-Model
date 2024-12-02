@@ -6,7 +6,7 @@
 defaults:
   - override /data: sketch_celeba.yaml
   - override /model: diffusion/condition_diffusion_module.yaml
-  - override /callbacks: genration_diffusion.yamlusion.yaml
+  - override /callbacks: generation_diffusion.yamlusion.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
 
