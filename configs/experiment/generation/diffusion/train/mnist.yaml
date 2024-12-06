@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "generation_diffusion/train"
+task_name: generation/diffusion/train
 
 trainer:
   max_epochs: 100
@@ -39,10 +39,10 @@ model:
 
 logger:
   wandb:
-    name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "generation_diffusion"
+    name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+    project: generation
     tags: ${tags}
-    group: ${data.dataset_name}
+    group: diffusion
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
 ckpt_path: null # simply provide checkpoint path to resume training

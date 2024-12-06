@@ -1,11 +1,11 @@
 # @package _global_
 
 # to execute this experiment run:
-# python train.py experiment=generation/flow/train/test
+# python eval.py experiment=generation/gan/eval/fashion
 
 defaults:
-  - override /data: mnist.yaml
-  - override /model: flow/nf_module.yaml
+  - override /data: fashion.yaml
+  - override /model: gan/gan_module.yaml
   - override /callbacks: generation.yaml
   - override /trainer: ddp.yaml
   - override /logger: wandb.yaml
@@ -15,23 +15,25 @@ defaults:
 
 seed: 12345
 
-task_name: generation/flow/train
+task_name: generation/gan/eval
 
 trainer:
-  max_epochs: 100
   devices: 1
-  check_val_every_n_epoch: 5
+  strategy:
+    _target_: pytorch_lightning.strategies.ddp.DDPStrategy
+    find_unused_parameters: True
 
 data:
-  batch_size: 256 # GPU 16G
+  batch_size: 1024 # GPU 16G
   num_workers: 10
+  train_val_test_split: [10_000, 10_000, 50_000] # test with 50.000 samples
 
 logger:
   wandb:
     name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
     project: generation
     tags: ${tags}
-    group: flow
+    group: gan
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
 ckpt_path: null # simply provide checkpoint path to resume training

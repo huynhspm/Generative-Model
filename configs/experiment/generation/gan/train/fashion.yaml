@@ -15,7 +15,7 @@ defaults:
 
 seed: 12345
 
-task_name: "generation_gan/train"
+task_name: generation/gan/train
 
 trainer:
   max_epochs: 500
@@ -31,10 +31,10 @@ data:
 
 logger:
   wandb:
-    name: "${now:%Y-%m-%d}_${now:%H-%M-%S}"
-    project: "generation_gan"
+    name: ${now:%Y-%m-%d}_${now:%H-%M-%S}
+    project: generation
     tags: ${tags}
-    group: ${data.dataset_name}
+    group: gan
     id: null # pass correct id to resume experiment! (if ckpt_path is not null)
 
 ckpt_path: null # simply provide checkpoint path to resume training
