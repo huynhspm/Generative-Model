@@ -28,7 +28,7 @@ class NFModule(pl.LightningModule):
         # also ensures init params will be stored in ckpt
         self.save_hyperparameters(logger=False)
 
-        # diffusion model
+        # flow model
         self.net = net
 
         # for averaging loss across batches
@@ -196,7 +196,7 @@ if __name__ == "__main__":
     root = pyrootutils.find_root(search_from=__file__,
                                 indicator=".project-root")
     print("root: ", root)
-    config_path = str(root / "configs" / "model" / "nf")
+    config_path = str(root / "configs" / "model" / "flow")
 
     @hydra.main(version_base=None,
                 config_path=config_path,

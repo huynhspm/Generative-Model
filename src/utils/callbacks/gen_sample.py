@@ -111,6 +111,8 @@ class GenSample(Callback):
 
             fakes = torch.stack(fakes, dim=1)  # b, n ,c, w, h
 
+            
+
             fakes = self.rescale(fakes) # range [0, 1]
             reals = self.rescale(reals) # range [0, 1]
 

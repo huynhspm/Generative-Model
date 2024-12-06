@@ -5,7 +5,7 @@ use_ema: true
 optimizer:
   _target_: torch.optim.Adam
   _partial_: true
-  lr: 1e-4
+  lr: 1e-3
   weight_decay: 0.0
 
 scheduler: null
@@ -14,3 +14,7 @@ net:
   _target_: src.models.flow.net.NICE
   img_dims: [1, 32, 32]
   num_coupling_layers: 4
+  num_net_layers: 6
+  num_hidden_units: 1000
+  prior:
+    _target_: src.models.flow.net.LogisticDistribution
